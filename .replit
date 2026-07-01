@@ -1,0 +1,16 @@
+run = "bash run.sh"
+entrypoint = "run.sh"
+hidden = [".config", "**/__pycache__", ".env", "*.db"]
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+exposeLocalhost = true
+
+[[ports]]
+localPort = 8501
+externalPort = 80
+exposeLocalhost = true

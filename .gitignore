@@ -1,0 +1,48 @@
+# NEVER commit these — financial data and secrets
+.env
+*.db
+*.sqlite
+*.sqlite3
+finance.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.Python
+pip-log.txt
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Replit
+.replit.nix.lock
+.config/
+.upm/
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Keys — if you ever accidentally create these, they stay off git
+*.pem
+*.key
+plaid_tokens*
+secrets*

@@ -1,0 +1,16 @@
+# Streamlit native theme — makes the ENTIRE app (sidebar, header, widgets,
+# fonts) dark, matching the custom CSS in app.py. Without this, Streamlit's
+# default light theme bleeds through the sidebar and text colors.
+
+[theme]
+base = "dark"
+primaryColor = "#7c3aed"
+backgroundColor = "#0f0f14"
+secondaryBackgroundColor = "#13131a"
+textColor = "#f1f5f9"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

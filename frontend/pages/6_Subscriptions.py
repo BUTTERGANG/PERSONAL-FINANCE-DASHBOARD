@@ -47,13 +47,14 @@ st.markdown("---")
 for s in subs:
     info, action = st.columns([6, 1])
     with info:
+        # \$ prevents Streamlit's markdown from treating $...$ pairs as LaTeX math
         st.markdown(
-            f"**{s['merchant'].title()}** &nbsp;·&nbsp; ${s['amount']:,.2f} {s['frequency']} "
+            f"**{s['merchant'].title()}** &nbsp;·&nbsp; \\${s['amount']:,.2f} {s['frequency']} "
             f"&nbsp;·&nbsp; {s['category']}",
             unsafe_allow_html=True,
         )
         st.caption(
-            f"~${s['monthly_cost']:,.2f}/mo · ${s['est_annual']:,.2f}/yr · "
+            f"~\\${s['monthly_cost']:,.2f}/mo · \\${s['est_annual']:,.2f}/yr · "
             f"seen {s['occurrences']}× · last {s['last_date']}"
         )
     with action:

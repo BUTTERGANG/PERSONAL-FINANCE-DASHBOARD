@@ -62,11 +62,12 @@ for b in budgets:
 
     row, btn = st.columns([6, 1])
     with row:
-        label = f"**{b['category']}** — ${spent:,.2f} / ${limit:,.2f}"
+        # \$ prevents Streamlit's markdown from treating $...$ pairs as LaTeX math
+        label = f"**{b['category']}** — \\${spent:,.2f} / \\${limit:,.2f}"
         if over:
-            st.markdown(f"🔴 {label} &nbsp; · &nbsp; **${abs(b['remaining']):,.2f} over**", unsafe_allow_html=True)
+            st.markdown(f"🔴 {label} &nbsp; · &nbsp; **\\${abs(b['remaining']):,.2f} over**", unsafe_allow_html=True)
         else:
-            st.markdown(f"🟢 {label} &nbsp; · &nbsp; ${b['remaining']:,.2f} left", unsafe_allow_html=True)
+            st.markdown(f"🟢 {label} &nbsp; · &nbsp; \\${b['remaining']:,.2f} left", unsafe_allow_html=True)
         st.progress(min(pct / 100, 1.0), text=f"{pct:.0f}% of budget")
     with btn:
         st.write("")

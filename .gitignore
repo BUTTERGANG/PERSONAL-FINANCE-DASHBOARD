@@ -24,8 +24,9 @@ build/
 .config/
 .upm/
 
-# Streamlit
-.streamlit/
+# Streamlit — ignore secrets but keep the committed theme config
+.streamlit/*
+!.streamlit/config.toml
 
 # OS
 .DS_Store

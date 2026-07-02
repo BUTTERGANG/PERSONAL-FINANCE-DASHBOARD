@@ -56,7 +56,7 @@ transactions = get_transactions(
 # ── Summary metrics ───────────────────────────────────────────────────────────
 if transactions:
     df = pd.DataFrame(transactions)
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"], format="ISO8601")
     df_spend = df[df["amount"] > 0]
     df_credit = df[df["amount"] < 0]
 

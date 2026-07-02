@@ -16,6 +16,7 @@ import streamlit as st
 
 from utils.api import (
     get_accounts,
+    get_month_over_month,
     get_networth_snapshots,
     get_spending_summary,
     get_transactions,
@@ -115,6 +116,27 @@ if len(snapshots) >= 2:
 else:
     st.info("📈 Your net worth trend builds as the app runs — check back after a couple of daily syncs.")
 
+# ── This month vs last month ──────────────────────────────────────────────────
+mom = get_month_over_month()
+mom_cats = [c for c in mom.get("categories", []) if c["pct_change"] is not None]
+if mom_cats:
+    st.markdown("---")
+    st.subheader("This Month vs Last")
+    st.caption(
+        f"Compared to the same point last month (day {mom.get('day_of_month', '?')})."
+    )
+    # Headline: biggest movers, capped at 4 cards
+    movers = sorted(mom_cats, key=lambda c: abs(c["pct_change"]), reverse=True)[:4]
+    cols = st.columns(len(movers))
+    for col, c in zip(cols, movers):
+        arrow = "🔺" if c["pct_change"] > 0 else ("🔻" if c["pct_change"] < 0 else "▪️")
+        col.metric(
+            f"{arrow} {c['category']}",
+            f"${c['this_month']:,.2f}",
+            delta=f"{c['pct_change']:+.0f}% vs last month",
+            delta_color="inverse",  # spending up = red
+        )
+
 st.markdown("---")
 
 # ── Account balance cards ─────────────────────────────────────────────────────
@@ -172,7 +194,7 @@ with chart_right:
     st.subheader("Daily Spending")
     if transactions:
         df_txn = pd.DataFrame(transactions)
-        df_txn["date"] = pd.to_datetime(df_txn["date"]).dt.date
+        df_txn["date"] = pd.to_datetime(df_txn["date"], format="ISO8601").dt.date
         df_daily = (
             df_txn[df_txn["amount"] > 0]
             .groupby("date")["amount"]
@@ -204,7 +226,7 @@ st.subheader("Recent Transactions")
 recent = sorted(transactions, key=lambda t: t["date"], reverse=True)[:10]
 if recent:
     df_recent = pd.DataFrame(recent)[["date", "description", "amount", "category", "account_id"]]
-    df_recent["date"] = pd.to_datetime(df_recent["date"]).dt.strftime("%b %d")
+    df_recent["date"] = pd.to_datetime(df_recent["date"], format="ISO8601").dt.strftime("%b %d")
     df_recent["amount"] = df_recent["amount"].apply(lambda x: f"${x:,.2f}" if x > 0 else f"-${abs(x):,.2f}")
     df_recent.columns = ["Date", "Description", "Amount", "Category", "Account"]
     st.dataframe(df_recent, use_container_width=True, hide_index=True)

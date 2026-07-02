@@ -75,6 +75,11 @@ def get_networth_snapshots(days: int = 90) -> list[dict]:
     return _get("/api/networth/snapshots", params={"days": days}) or []
 
 
+@st.cache_data(ttl=300)
+def get_month_over_month() -> dict:
+    return _get("/api/transactions/mom") or {}
+
+
 @st.cache_data(ttl=60)
 def get_budgets() -> list[dict]:
     return _get("/api/budgets/") or []
@@ -112,6 +117,43 @@ def unignore_subscription(merchant_key: str) -> None:
     get_subscriptions.clear()
 
 
+def create_manual_account(name: str, account_type: str, balance: float) -> dict:
+    result = _post(
+        "/api/manual/accounts",
+        json={"name": name, "account_type": account_type, "balance": balance},
+    ) or {}
+    get_accounts.clear()
+    get_networth_snapshots.clear()
+    return result
+
+
+def update_manual_balance(account_id: str, balance: float) -> None:
+    try:
+        r = httpx.patch(
+            f"{_BASE}/api/manual/accounts/{account_id}",
+            json={"balance": balance},
+            timeout=_TIMEOUT,
+        )
+        r.raise_for_status()
+    except httpx.HTTPError as exc:
+        st.error(f"Failed to update balance: {exc}")
+    get_accounts.clear()
+
+
+def import_transactions(account_id: str, transactions: list[dict]) -> dict:
+    result = _post(
+        "/api/manual/import",
+        json={"account_id": account_id, "transactions": transactions},
+    ) or {}
+    get_transactions.clear()
+    get_spending_summary.clear()
+    get_categories.clear()
+    get_subscriptions.clear()
+    get_budgets.clear()
+    get_month_over_month.clear()
+    return result
+
+
 def trigger_sync() -> dict:
     """Background sync — returns immediately, balance uses cached data (free)."""
     get_accounts.clear()
@@ -119,6 +161,7 @@ def trigger_sync() -> dict:
     get_spending_summary.clear()
     get_sync_logs.clear()
     get_networth_snapshots.clear()
+    get_month_over_month.clear()
     return _post("/api/sync/trigger") or {}
 
 
@@ -147,6 +190,7 @@ def trigger_sync_realtime() -> dict:
     get_spending_summary.clear()
     get_sync_logs.clear()
     get_networth_snapshots.clear()
+    get_month_over_month.clear()
     return result or {}
 
 

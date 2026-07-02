@@ -13,16 +13,21 @@ import streamlit as st
 
 from utils.api import get_accounts, get_categories, get_transactions
 from utils.auth import require_pin
+from utils.themes import get_color_palette, get_plotly_layout
 
 st.set_page_config(page_title="Transactions", page_icon="💳", layout="wide")
 require_pin()
-st.markdown("""
-<style>
-  .stApp { background-color: #0f0f14; }
-  [data-testid="metric-container"] { background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 12px; padding: 16px 20px; }
-  .stButton > button { background: #7c3aed; color: white; border: none; border-radius: 8px; }
-  footer { visibility: hidden; } #MainMenu { visibility: hidden; }
-</style>""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+      .stApp { background-color: var(--background-color, #0f0f14); }
+      [data-testid="metric-container"] { background: var(--card-bg, #1a1a24); border: 1px solid var(--border-color, #2d2d3d); border-radius: 12px; padding: 16px 20px; }
+      .stButton > button { background: var(--primary, #7c3aed); color: white; border: none; border-radius: 8px; }
+      footer { visibility: hidden; } #MainMenu { visibility: hidden; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("💳 Transactions")
 
@@ -79,14 +84,9 @@ if transactions:
         cat_data = cat_data.sort_values("Amount", ascending=True).tail(10)
         fig = px.bar(
             cat_data, x="Amount", y="Category", orientation="h",
-            color_discrete_sequence=["#7c3aed"],
+            color_discrete_sequence=get_color_palette(),
         )
-        fig.update_layout(
-            paper_bgcolor="#1a1a24", plot_bgcolor="#1a1a24", font_color="#f1f5f9",
-            margin=dict(t=10, b=10, l=10, r=10),
-            xaxis=dict(showgrid=True, gridcolor="#2d2d3d"),
-            yaxis=dict(showgrid=False),
-        )
+        fig.update_layout(**get_plotly_layout())
         st.plotly_chart(fig, use_container_width=True)
 
     with chart_r:
@@ -96,15 +96,10 @@ if transactions:
         df_daily = df_daily.groupby("day")["amount"].sum().reset_index()
         fig2 = px.area(
             df_daily, x="day", y="amount",
-            color_discrete_sequence=["#7c3aed"],
+            color_discrete_sequence=get_color_palette()[:1],
             labels={"amount": "Spent ($)", "day": "Date"},
         )
-        fig2.update_layout(
-            paper_bgcolor="#1a1a24", plot_bgcolor="#1a1a24", font_color="#f1f5f9",
-            margin=dict(t=10, b=10, l=10, r=10),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor="#2d2d3d"),
-        )
+        fig2.update_layout(**get_plotly_layout())
         st.plotly_chart(fig2, use_container_width=True)
 
     st.markdown("---")

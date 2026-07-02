@@ -12,18 +12,10 @@ import streamlit as st
 
 from utils.api import get_subscriptions, ignore_subscription
 from utils.auth import require_pin
+from utils.themes import get_color_palette, get_plotly_layout
 
 st.set_page_config(page_title="Subscriptions", page_icon="🔁", layout="wide")
 require_pin()
-
-st.markdown("""
-<style>
-  .stApp { background-color: #0f0f14; }
-  [data-testid="metric-container"] { background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 12px; padding: 16px 20px; }
-  .stButton > button { background: #7c3aed; color: white; border: none; border-radius: 8px; }
-  .stButton > button:hover { background: #6d28d9; border: none; }
-  footer { visibility: hidden; } #MainMenu { visibility: hidden; }
-</style>""", unsafe_allow_html=True)
 
 st.title("🔁 Subscriptions")
 st.caption("Recurring charges detected from the last 180 days. Hide anything that isn't a real subscription.")

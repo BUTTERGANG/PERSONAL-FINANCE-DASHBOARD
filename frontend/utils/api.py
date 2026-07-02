@@ -85,6 +85,11 @@ def get_budgets() -> list[dict]:
     return _get("/api/budgets/") or []
 
 
+@st.cache_data(ttl=60)
+def get_budget_alerts() -> list[dict]:
+    return _get("/api/budgets/alerts") or []
+
+
 def set_budget(category: str, limit_amount: float) -> dict:
     result = _post("/api/budgets/", json={"category": category, "limit_amount": limit_amount}) or {}
     get_budgets.clear()

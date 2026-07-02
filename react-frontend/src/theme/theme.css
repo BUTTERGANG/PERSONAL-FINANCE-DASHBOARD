@@ -1,0 +1,173 @@
+/* ============================================================
+   Design system — clean modern fintech
+   Light is the default (:root); dark overrides via [data-theme="dark"].
+   Every surface sets its own background + color so contrast holds
+   in both modes (never rely on inherited color on a fixed bg).
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f2f4f7; /* subtle inset (table headers, inputs) */
+  --sidebar: #ffffff;
+
+  /* Ink */
+  --text: #1a1d23;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+
+  /* Lines */
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  /* Accent (indigo) */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.1);
+  --accent-contrast: #ffffff;
+
+  /* Semantic (desaturated, accessible) */
+  --positive: #16a34a;
+  --positive-soft: rgba(22, 163, 74, 0.1);
+  --negative: #dc2626;
+  --negative-soft: rgba(220, 38, 38, 0.1);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --info: #0ea5e9;
+
+  /* Chart surface (validator target) */
+  --chart-surface: #ffffff;
+  --chart-grid: #eceef1;
+
+  /* Type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+
+  /* Radius */
+  --radius-lg: 12px;
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Elevation (light: soft shadow; dark overrides to border-only) */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.12);
+
+  --transition: 0.15s ease;
+}
+
+[data-theme='dark'] {
+  --bg: #0f1115;
+  --surface: #181b22;
+  --surface-2: #1f232b;
+  --sidebar: #14171d;
+
+  --text: #e6e8ec;
+  --text-secondary: #a8afba;
+  --text-muted: #7c8492;
+
+  --border: #272b33;
+  --border-strong: #343945;
+
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-soft: rgba(129, 140, 248, 0.14);
+  --accent-contrast: #0f1115;
+
+  --positive: #4ade80;
+  --positive-soft: rgba(74, 222, 128, 0.13);
+  --negative: #f87171;
+  --negative-soft: rgba(248, 113, 113, 0.13);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --info: #38bdf8;
+
+  --chart-surface: #181b22;
+  --chart-grid: #262a32;
+
+  /* In dark mode, lean on borders rather than shadows */
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular figures wherever numbers line up */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Focus ring — visible, accessible, consistent */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

@@ -24,6 +24,7 @@ class BudgetOut(BaseModel):
     spent: float
     remaining: float
     pct: float  # 0-100+, how much of the limit is used this month
+    alert: str | None = None  # "warning" or "danger" threshold crossed
 
 
 def _month_start() -> datetime:
@@ -56,6 +57,14 @@ def list_budgets(db: Session = Depends(get_db)):
         spent = round(spent_map.get(b.category, 0.0), 2)
         remaining = round(b.limit_amount - spent, 2)
         pct = round((spent / b.limit_amount * 100) if b.limit_amount > 0 else 0.0, 1)
+
+        # Alert levels: warning at 80%, danger at 100%+
+        alert = None
+        if pct >= 100:
+            alert = "danger"
+        elif pct >= 80:
+            alert = "warning"
+
         out.append(
             BudgetOut(
                 category=b.category,
@@ -63,9 +72,47 @@ def list_budgets(db: Session = Depends(get_db)):
                 spent=spent,
                 remaining=remaining,
                 pct=pct,
+                alert=alert,  # type: ignore
             )
         )
     return out
+
+
+@router.get("/alerts")
+def get_budget_alerts(db: Session = Depends(get_db)):
+    """Get categories that are at warning (80%) or danger (100%+) threshold."""
+    spent_map = _spent_by_category(db)
+    budgets = db.query(Budget).all()
+
+    alerts = []
+    for b in budgets:
+        spent = round(spent_map.get(b.category, 0.0), 2)
+        pct = round((spent / b.limit_amount * 100) if b.limit_amount > 0 else 0.0, 1)
+
+        if pct >= 100:
+            alerts.append(
+                {
+                    "category": b.category,
+                    "level": "danger",
+                    "spent": spent,
+                    "limit": b.limit_amount,
+                    "pct": pct,
+                    "message": f"Over budget by ${spent - b.limit_amount:,.2f}",
+                }
+            )
+        elif pct >= 80:
+            alerts.append(
+                {
+                    "category": b.category,
+                    "level": "warning",
+                    "spent": spent,
+                    "limit": b.limit_amount,
+                    "pct": pct,
+                    "message": f"Near limit — ${b.limit_amount - spent:,.2f} remaining",
+                }
+            )
+
+    return alerts
 
 
 @router.post("/", response_model=BudgetOut)
@@ -84,12 +131,21 @@ def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db)):
     spent = round(_spent_by_category(db).get(payload.category, 0.0), 2)
     remaining = round(payload.limit_amount - spent, 2)
     pct = round((spent / payload.limit_amount * 100) if payload.limit_amount > 0 else 0.0, 1)
+
+    # Alert levels: warning at 80%, danger at 100%+
+    alert = None
+    if pct >= 100:
+        alert = "danger"
+    elif pct >= 80:
+        alert = "warning"
+
     return BudgetOut(
         category=payload.category,
         limit_amount=payload.limit_amount,
         spent=spent,
         remaining=remaining,
         pct=pct,
+        alert=alert,  # type: ignore
     )
 
 

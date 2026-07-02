@@ -12,18 +12,12 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from utils.api import get_accounts, get_sync_logs, get_transactions, trigger_sync, trigger_sync_realtime
+from utils.api import get_accounts, get_categories, get_spending_summary, get_sync_logs, get_transactions, trigger_sync, trigger_sync_realtime
 from utils.auth import require_pin
+from utils.themes import get_color_palette, get_plotly_layout
 
 st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
 require_pin()
-st.markdown("""
-<style>
-  .stApp { background-color: #0f0f14; }
-  [data-testid="metric-container"] { background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 12px; padding: 16px 20px; }
-  .stButton > button { background: #7c3aed; color: white; border: none; border-radius: 8px; }
-  footer { visibility: hidden; } #MainMenu { visibility: hidden; }
-</style>""", unsafe_allow_html=True)
 
 st.title("⚙️ Settings")
 
@@ -54,7 +48,6 @@ with col1:
 
 with col2:
     if st.button("♻️ Clear Cache"):
-        from utils.api import get_accounts, get_categories, get_spending_summary, get_sync_logs, get_transactions
         get_accounts.clear()
         get_transactions.clear()
         get_spending_summary.clear()

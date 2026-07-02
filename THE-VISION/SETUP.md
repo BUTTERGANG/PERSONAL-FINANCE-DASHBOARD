@@ -101,23 +101,23 @@ bash run.sh
 Watch for:
 ```
 🚀 Starting FastAPI backend on port 8000...
-🖥️  Starting Streamlit frontend on port 8501...
+🖥️  Starting Vite dev server (React) on port 5173...
 ```
 
-Open the Replit webview — you'll see the Streamlit dashboard.
+Open the Replit webview — you'll see the React dashboard.
 
 ---
 
 ## Step 7: Link Your Accounts
 
-1. In the dashboard, navigate to **Link Account** (sidebar)
+1. In the dashboard, navigate to **Link account** (sidebar)
 2. Click **Link with Plaid** for each institution:
    - Chase → select "Chase" in Plaid Link
    - Citi → select "Citi" in Plaid Link
    - PayPal → select "PayPal" in Plaid Link
    - Venmo → select "Venmo" in Plaid Link
 3. Complete the authentication in Plaid's interface (handles 2FA for you)
-4. After linking, click **Sync Now** or wait for the next auto-sync
+4. After linking, click **Sync** (header button) or wait for the next auto-sync
 
 **For Fidelity:** The connection is automatic via OFX — no Plaid Link needed.
 Navigate to **Accounts** and check if Fidelity shows "Last synced." If it shows
@@ -127,10 +127,8 @@ an error, check THE-VISION/SECURITY.md troubleshooting section.
 
 ## Step 8: Verify Everything is Working
 
-1. Go to **Overview** — you should see your account balance cards
-2. Go to **Transactions** — you should see recent transactions
-3. Go to **Accounts** — check last synced timestamp on each account
-4. Check **Settings → Sync Logs** to verify no errors
+1. Go to **Overview** — you should see your account balance cards, net worth trend, spending charts
+2. Check **Settings → Sync Logs** to verify no errors
 
 ---
 
@@ -140,8 +138,8 @@ Once Plaid approves your Development access:
 1. Go to Plaid dashboard → Team Settings → Keys → copy the **Development secret**
 2. Update `PLAID_SECRET` in Replit Secrets to the development secret
 3. Update `PLAID_ENV` from `sandbox` to `development`
-4. Re-run the app
-5. Re-link your accounts (development tokens are separate from sandbox)
+3. Re-run the app
+4. Re-link your accounts (development tokens are separate from sandbox)
 
 ---
 
@@ -165,3 +163,32 @@ cp finance.db finance_backup_$(date +%Y%m%d).db
 ```
 
 Or use the **Export Data** option in the Settings page to download CSV files.
+
+---
+
+## Local Development (Optional)
+
+If you want to run locally instead of Replit:
+
+```bash
+# 1. Create .env from template
+cp .env.example .env
+# Edit .env with your secrets
+
+# 2. Install backend deps
+cd backend
+pip install -r ../requirements.txt
+
+# 3. Install frontend deps
+cd ../react-frontend
+npm install
+
+# 4. Start backend (terminal 1)
+cd ../backend
+uvicorn main:app --reload --port 8000
+
+# 5. Start frontend (terminal 2)
+cd ../react-frontend
+npm run dev
+# Frontend at http://localhost:5173 (proxies /api to :8000)
+```

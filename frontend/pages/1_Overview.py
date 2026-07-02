@@ -11,11 +11,11 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from utils.api import (
     get_accounts,
+    get_budget_alerts,
     get_month_over_month,
     get_networth_snapshots,
     get_spending_summary,
@@ -23,21 +23,10 @@ from utils.api import (
     trigger_sync,
 )
 from utils.auth import require_pin
+from utils.themes import get_color_palette, get_plotly_layout
 
 st.set_page_config(page_title="Overview", page_icon="📊", layout="wide")
 require_pin()
-
-# ── Page CSS ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-  .stApp { background-color: #0f0f14; }
-  [data-testid="metric-container"] {
-    background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 12px; padding: 16px 20px;
-  }
-  .stButton > button { background: #7c3aed; color: white; border: none; border-radius: 8px; }
-  .stButton > button:hover { background: #6d28d9; border: none; }
-  footer { visibility: hidden; } #MainMenu { visibility: hidden; }
-</style>""", unsafe_allow_html=True)
 
 # ── Institution colors & icons ────────────────────────────────────────────────
 INST_META = {
@@ -89,6 +78,21 @@ m3.metric("📤 Total Debt", f"${total_debt:,.2f}")
 total_spend = sum(t["amount"] for t in transactions if t["amount"] > 0 and not t["pending"])
 m4.metric(f"🛒 Spent (last {days_choice}d)", f"${total_spend:,.2f}")
 
+# ── Budget alerts ───────────────────────────────────────────────────────────────
+alerts = get_budget_alerts()
+if alerts:
+    st.markdown("---")
+    danger_alerts = [a for a in alerts if a["level"] == "danger"]
+    warning_alerts = [a for a in alerts if a["level"] == "warning"]
+
+    if danger_alerts:
+        for a in danger_alerts:
+            st.error(f"🔴 **{a['category']}**: {a['message']}", icon="🔴")
+
+    if warning_alerts:
+        for a in warning_alerts:
+            st.warning(f"⚠️ **{a['category']}**: {a['message']}", icon="⚠️")
+
 # ── Net worth trend ───────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("Net Worth Trend")
@@ -104,14 +108,10 @@ if len(snapshots) >= 2:
         color_discrete_sequence=["#22c55e"],
         labels={"net_worth": "Net Worth ($)", "day": ""},
     )
-    fig_nw.update_layout(
-        paper_bgcolor="#1a1a24",
-        plot_bgcolor="#1a1a24",
-        font_color="#f1f5f9",
-        margin=dict(t=10, b=10, l=10, r=10),
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor="#2d2d3d"),
-    )
+    layout = get_plotly_layout()
+    layout["xaxis"]["showgrid"] = True
+    layout["xaxis"]["gridcolor"] = layout.get("yaxis", {}).get("gridcolor", "#2d2d3d")
+    fig_nw.update_layout(**layout)
     st.plotly_chart(fig_nw, use_container_width=True)
 else:
     st.info("📈 Your net worth trend builds as the app runs — check back after a couple of daily syncs.")
@@ -121,21 +121,30 @@ mom = get_month_over_month()
 mom_cats = [c for c in mom.get("categories", []) if c["pct_change"] is not None]
 if mom_cats:
     st.markdown("---")
-    st.subheader("This Month vs Last")
+    st.subheader("📊 This Month vs Last")
     st.caption(
         f"Compared to the same point last month (day {mom.get('day_of_month', '?')})."
     )
-    # Headline: biggest movers, capped at 4 cards
-    movers = sorted(mom_cats, key=lambda c: abs(c["pct_change"]), reverse=True)[:4]
-    cols = st.columns(len(movers))
-    for col, c in zip(cols, movers):
-        arrow = "🔺" if c["pct_change"] > 0 else ("🔻" if c["pct_change"] < 0 else "▪️")
-        col.metric(
-            f"{arrow} {c['category']}",
-            f"${c['this_month']:,.2f}",
-            delta=f"{c['pct_change']:+.0f}% vs last month",
-            delta_color="inverse",  # spending up = red
-        )
+
+    total_this = mom.get("total_this_month", 0)
+    total_prev = mom.get("total_last_month_same_point", 0)
+    if total_prev > 0:
+        total_pct = round((total_this - total_prev) / total_prev * 100, 1)
+        st.markdown(f"**Total spending:** ${total_this:,.0f} (${total_pct:+.0f}% vs last month)")
+
+    # Show all categories in a clean table with color-coded changes
+    st.markdown("")
+    df_mom = pd.DataFrame(mom_cats)
+    df_mom = df_mom[["category", "this_month", "last_month_same_point", "pct_change"]]
+    df_mom.columns = ["Category", "This Month", "Last Month", "% Change"]
+    df_mom["This Month"] = df_mom["This Month"].apply(lambda x: f"${x:,.2f}")
+    df_mom["Last Month"] = df_mom["Last Month"].apply(
+        lambda x: f"${x:,.2f}" if x else "—"
+    )
+    df_mom["% Change"] = df_mom["% Change"].apply(
+        lambda x: f"🔺 +{x:.0f}%" if x > 0 else (f"🔻 {x:.0f}%" if x < 0 else "▪️ 0%")
+    )
+    st.dataframe(df_mom, use_container_width=True, hide_index=True)
 
 st.markdown("---")
 
@@ -175,16 +184,12 @@ with chart_left:
             df_summary,
             values="total",
             names="category",
-            color_discrete_sequence=px.colors.qualitative.Vivid,
+            color_discrete_sequence=get_color_palette(),
             hole=0.4,
         )
-        fig_pie.update_layout(
-            paper_bgcolor="#1a1a24",
-            plot_bgcolor="#1a1a24",
-            font_color="#f1f5f9",
-            margin=dict(t=10, b=10, l=10, r=10),
-            legend=dict(font=dict(size=11)),
-        )
+        layout = get_plotly_layout()
+        layout["legend"] = dict(font=dict(size=11))
+        fig_pie.update_layout(**layout)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label")
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
@@ -206,16 +211,9 @@ with chart_right:
             df_daily,
             x="date",
             y="Spent",
-            color_discrete_sequence=["#7c3aed"],
+            color_discrete_sequence=get_color_palette()[:1],
         )
-        fig_bar.update_layout(
-            paper_bgcolor="#1a1a24",
-            plot_bgcolor="#1a1a24",
-            font_color="#f1f5f9",
-            margin=dict(t=10, b=10, l=10, r=10),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor="#2d2d3d"),
-        )
+        fig_bar.update_layout(**get_plotly_layout())
         st.plotly_chart(fig_bar, use_container_width=True)
     else:
         st.info("No transaction data yet.")

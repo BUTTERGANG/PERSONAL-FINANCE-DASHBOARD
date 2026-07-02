@@ -13,20 +13,10 @@ import streamlit as st
 
 from utils.api import get_accounts, get_sync_logs, trigger_sync
 from utils.auth import require_pin
+from utils.themes import get_color_palette, get_plotly_layout
 
 st.set_page_config(page_title="Accounts", page_icon="🏦", layout="wide")
 require_pin()
-st.markdown("""
-<style>
-  .stApp { background-color: #0f0f14; }
-  [data-testid="metric-container"] { background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 12px; padding: 16px 20px; }
-  .stButton > button { background: #7c3aed; color: white; border: none; border-radius: 8px; }
-  footer { visibility: hidden; } #MainMenu { visibility: hidden; }
-  .account-card {
-    background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 14px;
-    padding: 20px 24px; margin-bottom: 16px;
-  }
-</style>""", unsafe_allow_html=True)
 
 INST_META = {
     "chase":    {"icon": "🏦", "full": "JPMorgan Chase", "color": "#1a56db"},

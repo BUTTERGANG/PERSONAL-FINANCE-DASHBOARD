@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -50,22 +50,14 @@ class ManualAccountIn(BaseModel):
 class BalanceUpdate(BaseModel):
     balance: float
 
-def get_api_key(request: Request):
-    """Dependency to extract and validate API key from request headers."""
-    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization")
-    if api_key and api_key.startswith("Bearer "):
-        api_key = api_key[7:]
-    return api_key
 
 # ── Manual accounts ────────────────────────────────────────────────────────────
 
 @router.post("/accounts")
 def create_manual_account(
     payload: ManualAccountIn,
-    api_key: str = Depends(get_api_key),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # TODO: Add API key validation here
     if payload.account_type not in MANUAL_TYPES:
         raise HTTPException(
             status_code=400,
@@ -94,10 +86,8 @@ def create_manual_account(
 def update_manual_balance(
     account_id: str,
     payload: BalanceUpdate,
-    api_key: str = Depends(get_api_key),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # TODO: Add API key validation here
     acct = db.get(Account, account_id)
     if not acct:
         raise HTTPException(status_code=404, detail="Account not found.")
@@ -126,10 +116,8 @@ class ImportRequest(BaseModel):
 @router.post("/import")
 def import_transactions(
     payload: ImportRequest,
-    api_key: str = Depends(get_api_key),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # TODO: Add API key validation here
     acct = db.get(Account, payload.account_id)
     if not acct:
         raise HTTPException(status_code=404, detail="Account not found. Create it first.")

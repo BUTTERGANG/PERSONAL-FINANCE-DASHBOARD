@@ -11,6 +11,8 @@ import type {
   ImportTxnRow,
   ImportResult,
   Health,
+  ParsedTransaction,
+  PDFPreviewResponse,
 } from './types';
 
 // Dev: Vite proxies /api → :8000. Prod: same-origin /api (adjust if the backend
@@ -98,6 +100,23 @@ export const updateManualBalance = (account_id: string, balance: number) =>
   );
 export const importTransactions = (account_id: string, transactions: ImportTxnRow[]) =>
   send<ImportResult>('/manual/import', 'POST', { account_id, transactions });
+
+// --- PDF import ---
+export const previewPdfImport = (file: File, bank_hint?: string) => {
+  const form = new FormData();
+  form.append('file', file);
+  if (bank_hint) form.append('bank_hint', bank_hint);
+  return fetch(`${BASE_URL}/manual/import-pdf/preview`, {
+    method: 'POST',
+    body: form,
+  }).then((res) => {
+    if (!res.ok) throw new Error(`PDF preview failed: ${res.status}`);
+    return res.json() as Promise<PDFPreviewResponse>;
+  });
+};
+
+export const confirmPdfImport = (account_id: string, transactions: ParsedTransaction[]) =>
+  send<ImportResult>('/manual/import-pdf/confirm', 'POST', { account_id, transactions });
 
 // --- Sync ---
 export const fetchSyncLogs = (limit = 20) => get<SyncLog[]>('/sync/logs', { limit });

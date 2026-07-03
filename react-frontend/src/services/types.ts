@@ -112,3 +112,17 @@ export interface Health {
   status: string;
   sync_interval_hours: number;
 }
+
+// PDF import types
+export interface ParsedTransaction {
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description: string;
+  category?: string | null;
+}
+
+export interface PDFPreviewResponse {
+  bank_detected: string;
+  transactions: ParsedTransaction[];
+  transaction_count: number;
+}

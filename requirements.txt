@@ -32,3 +32,7 @@ httpx==0.28.1
 # Template rendering
 jinja2==3.1.5
 python-multipart==0.0.20
+
+# PDF parsing for bank statements
+pdfplumber==0.11.4
+pymupdf==1.23.26

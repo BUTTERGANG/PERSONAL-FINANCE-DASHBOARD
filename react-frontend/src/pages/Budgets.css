@@ -1,0 +1,70 @@
+/* Budgets page */
+
+.budget-form {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.budget-form .grow {
+  flex: 1 1 240px;
+}
+.budget-save {
+  height: 37px;
+}
+
+.budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.budget-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.budget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.budget-cat {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.budget-amounts {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+.budget-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12.5px;
+}
+.budget-pct {
+  color: var(--text-muted);
+}
+.budget-pct.warn {
+  color: var(--warning);
+}
+.budget-pct.over {
+  color: var(--negative);
+}
+.budget-remaining {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+.over-text {
+  color: var(--negative);
+}
+.budget-del {
+  color: var(--text-muted);
+  padding: 5px 8px;
+}
+.budget-del:hover {
+  color: var(--negative);
+  border-color: var(--negative);
+}

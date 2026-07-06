@@ -1,0 +1,123 @@
+/* Accounts page */
+
+.account-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+
+.acct-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.acct-main {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.acct-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.acct-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.acct-meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+.acct-synced {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.acct-balance {
+  text-align: right;
+  flex-shrink: 0;
+}
+.acct-balance-label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.acct-balance-value {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* Sync log */
+.sync-log {
+  display: flex;
+  flex-direction: column;
+}
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.sync-row:last-child {
+  border-bottom: none;
+}
+.sync-inst {
+  font-weight: 500;
+  color: var(--text);
+  min-width: 120px;
+}
+.sync-detail {
+  color: var(--text-secondary);
+  flex: 1;
+}
+.sync-time {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.ok {
+  color: var(--positive);
+  display: inline-flex;
+}
+.err {
+  color: var(--negative);
+  display: inline-flex;
+}
+
+.toast-inline {
+  padding: var(--space-3) var(--space-4);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 560px) {
+  .sync-inst {
+    min-width: 0;
+  }
+  .sync-time {
+    display: none;
+  }
+}

@@ -1,0 +1,116 @@
+/* Link account page */
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  margin: 0 0 var(--space-4);
+}
+.muted.small {
+  font-size: 12.5px;
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+.inst-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.inst-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.inst-card.linked {
+  border-color: var(--positive);
+}
+.inst-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.inst-type {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 2px 0 12px;
+}
+.inst-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.inst-status.on {
+  color: var(--positive);
+}
+.inst-status.off {
+  color: var(--text-muted);
+}
+
+.link-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Fidelity disclosure */
+.disclosure {
+  margin-top: var(--space-2);
+}
+.disclosure-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.disclosure-toggle .rot {
+  transform: rotate(180deg);
+}
+.disclosure-body {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.disclosure-body p {
+  margin: 0 0 var(--space-2);
+}
+.disclosure-body ul {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+}
+.disclosure-body li {
+  margin-bottom: 4px;
+}
+.disclosure-body code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.linked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13.5px;
+}
+.linked-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.linked-list li:last-child {
+  border-bottom: none;
+}

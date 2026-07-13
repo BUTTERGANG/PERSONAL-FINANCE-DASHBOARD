@@ -1,5 +1,10 @@
 # Architecture — Personal Finance Dashboard
 
+> **Status note (2026-07):** The external connectors in the diagram below (Plaid, Fidelity
+> OFX) are **built but dormant** — Plaid developer access has not been granted yet. The
+> live data path today is **document upload** (CSV + PDF), handled entirely inside the
+> FastAPI backend with no external calls. See the "Document Import" data flows below.
+
 ## System Overview
 
 ```
@@ -41,7 +46,59 @@
 
 ## Data Flow
 
-### First-Time Account Linking (Plaid)
+> **Which path is live?** Document import (below) is the **working data path today** —
+> Plaid/OFX live sync is built but dormant pending Plaid developer-access approval.
+
+### Document Import — CSV (working)
+
+```
+User opens Import page → creates a manual account (if none)
+  → drops one or more bank CSV files (sequential multi-file wizard)
+  → papaparse reads headers; UI auto-guesses date/amount/description columns
+  → user confirms mapping, optionally flips amount signs, previews first rows
+  → React POSTs rows to /api/manual/import { account_id, transactions[] }
+  → backend hashes each row (account|date|amount|desc) → "csv-<sha1>" id
+  → new ids inserted (source="csv"); duplicate ids skipped → idempotent re-import
+  → response: { added, skipped_duplicates }
+```
+
+### Document Import — PDF statement (working)
+
+The PDF parser (`backend/pdf_parser.py`) is **section-aware and self-reconciling**.
+The unit of tuning is a `(bank, product)` **statement type** — a small declarative
+`StatementType` config (its labelled sections, each section's sign, the printed totals
+to reconcile against). Six types are configured today: Chase checking; Citi, PayPal,
+and Venmo credit cards; and Fidelity brokerage + crypto investment statements.
+
+```
+User opens Import page (PDF tab) → picks a bank-statement PDF
+  → React POSTs the file to /api/manual/import-pdf/preview (multipart)
+  → backend writes it to a temp file, parses, then deletes the temp file
+      pdf_parser.parse_statement():
+        detect_statement_type() → matches a (bank, product) config
+        transaction types → split into sections, apply per-section sign,
+                             infer year from the statement period
+        investment types  → extract holdings (symbol, qty, price, value,
+                             cost basis, unrealized gain) instead of transactions
+        reconcile → parsed section sums vs the statement's printed totals, and the
+                    credit-card / checking / holdings balance identity
+        summary → headline figures (new/ending balance, min payment, due date,
+                  credit limit, account value)
+        (unrecognized statements fall back to a legacy line-regex parser)
+  → returns { statement_type, parse_method, transactions[], holdings[], reconciled,
+              reconciliation{}, summary{}, account_balance } — NOTHING saved yet
+  → user reviews rows/holdings + reconciliation status, picks destination account
+  → React POSTs to /api/manual/import-pdf/confirm
+        { account_id, transactions[], set_balance? }
+  → backend inserts txns with "pdf-<sha1>" ids (source="pdf"), idempotent and
+    deduped across csv-/pdf- sources; optionally sets the account balance.
+    A holdings-only statement (Fidelity) imports via set_balance with no rows.
+```
+
+Manual accounts (id prefixed `manual-`) have no Plaid token and flow into net worth
+snapshots automatically — so the whole dashboard works off imported data alone.
+
+### First-Time Account Linking (Plaid) — *dormant until Plaid access granted*
 
 ```
 User clicks "Link Account" in React UI
@@ -96,7 +153,7 @@ React page loads
 ### accounts
 | Column | Type | Notes |
 |--------|------|-------|
-| id | TEXT PK | Plaid account_id or "fidelity_{acct_num}" |
+| id | TEXT PK | Plaid account_id, "fidelity_{acct_num}", or "manual-{slug}" (imported) |
 | name | TEXT | Display name from institution |
 | institution | TEXT | chase, citi, fidelity, paypal, venmo |
 | account_type | TEXT | checking, savings, credit, investment |
@@ -112,15 +169,15 @@ React page loads
 ### transactions
 | Column | Type | Notes |
 |--------|------|-------|
-| id | TEXT PK | Plaid transaction_id or "fidelity_{fitid}" |
+| id | TEXT PK | Plaid transaction_id, "fidelity_{fitid}", "csv-{sha1}", or "pdf-{sha1}" |
 | account_id | TEXT | FK → accounts.id |
 | date | DATETIME | Transaction date |
 | amount | REAL | Positive = debit, negative = credit/refund |
 | description | TEXT | Merchant name or memo |
-| category | TEXT | Plaid personal_finance_category |
-| merchant | TEXT | Normalized merchant name |
+| category | TEXT | Plaid personal_finance_category (null for CSV/PDF imports until user categorizes) |
+| merchant | TEXT | Normalized merchant name (null for imports) |
 | pending | BOOL | True if not yet settled |
-| source | TEXT | "plaid" or "ofx" |
+| source | TEXT | "plaid", "ofx", "csv", or "pdf" |
 | created_at | DATETIME | When we recorded it |
 
 ### sync_logs
@@ -188,7 +245,9 @@ React page loads
 | DELETE | /api/subscriptions/ignore/{merchant_key} | Restore a dismissed subscription |
 | POST | /api/manual/accounts | Create a manual account (no Plaid) |
 | PATCH | /api/manual/accounts/{account_id} | Update manual account balance |
-| POST | /api/manual/import | Import CSV transactions to manual account |
+| POST | /api/manual/import | Import CSV transaction rows (idempotent, source="csv") |
+| POST | /api/manual/import-pdf/preview | Parse an uploaded PDF statement → transactions, holdings, reconciliation, summary, account_balance (nothing saved; 422 on unreadable PDF) |
+| POST | /api/manual/import-pdf/confirm | Save reviewed rows and/or sync the account balance (idempotent across csv-/pdf-; accepts transactions, set_balance, or both) |
 
 ---
 
@@ -199,9 +258,15 @@ See SECURITY.md for full threat model. Summary:
 - **Plaid access tokens**: Encrypted (Fernet AES-128) before SQLite write
 - **Encryption key**: Lives only in Replit Secrets (env var), never in code or DB
 - **OFX credentials**: Live in Replit Secrets, never written to disk
+- **Uploaded PDFs**: Parsed in a temp file that is `os.unlink`'d immediately after parsing — the PDF is never persisted
 - **Transport**: Replit provides HTTPS for all external traffic
 - **Plaid is read-only**: Access tokens cannot initiate transfers
 - **No passwords stored**: Plaid tokens replace passwords; OFX uses env vars
+
+> ⚠️ **Open gap:** there is currently **no access control** — the React UI has no PIN
+> gate and the FastAPI backend has no endpoint auth, while `.replit` exposes port 8000
+> publicly. Anyone with the Replit URL can read all data (UI *and* `/api` *and* `/docs`).
+> Add an app-level gate + backend auth and stop exposing 8000 before any public deploy.
 
 ---
 
@@ -249,7 +314,9 @@ See SECURITY.md for full threat model. Summary:
 | `src/services/api.ts` | Typed API client (mirrors FastAPI routes) |
 | `src/services/types.ts` | TypeScript interfaces matching Pydantic schemas |
 | `src/App.tsx` | Shell: sidebar, header, sync button, theme toggle, toast |
-| `src/pages/Overview.tsx` | Complete MVP dashboard page |
+| `src/pages/*.tsx` | All 8 pages built (each with its own `.css`): Overview, Transactions, Accounts, Budgets, Subscriptions, Import, LinkAccount, Settings |
+| `src/pages/Import.tsx` | ★ CSV multi-file wizard + PDF statement upload — the working data path |
+| `backend/pdf_parser.py` | Bank-statement PDF → normalized transactions (8 banks + generic fallback) |
 
 ---
 

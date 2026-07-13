@@ -5,10 +5,10 @@ hidden = [".config", "**/__pycache__", ".env", "*.db"]
 [nix]
 channel = "stable-24_05"
 
-[[ports]]
-localPort = 8000
-externalPort = 8000
-exposeLocalhost = true
+# Backend (FastAPI) is intentionally NOT exposed externally. It listens on
+# localhost:8000 inside the container; the browser reaches it only through the
+# Vite server's /api proxy (port 5173 → 80). Keeping 8000 private means the API
+# can't be hit directly, bypassing the PIN gate / CORS, from the public internet.
 
 [[ports]]
 localPort = 5173

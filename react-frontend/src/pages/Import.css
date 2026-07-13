@@ -270,3 +270,60 @@
     justify-content: space-between;
   }
 }
+
+/* ── PDF preview: reconciliation banner, balances, holdings, sync ─────────────── */
+
+.recon-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.recon-banner svg { flex: none; margin-top: 1px; }
+.recon-banner strong { font-weight: 600; }
+.recon-banner span { color: var(--text-muted); }
+
+.recon-ok {
+  background: var(--positive-soft);
+  border-color: color-mix(in srgb, var(--positive) 30%, transparent);
+  color: var(--positive);
+}
+.recon-warn {
+  background: var(--warning-soft);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  color: var(--warning);
+}
+.recon-neutral {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.recon-notes {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+}
+.recon-notes li { margin-top: 2px; }
+
+.summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.sync-balance-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.sync-balance-row input { margin-top: 3px; flex: none; cursor: pointer; }
+.sync-balance-hint { color: var(--text-muted); }

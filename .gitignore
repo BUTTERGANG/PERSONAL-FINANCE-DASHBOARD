@@ -47,3 +47,8 @@ logs/
 *.key
 plaid_tokens*
 secrets*
+
+# Real bank-statement PDFs used as parser test fixtures — contain live PII
+# (account numbers, addresses, balances). Kept on disk, never committed.
+# tests skip gracefully when these are absent (see tests/test_pdf_parser.py).
+tests/fixtures/statements/

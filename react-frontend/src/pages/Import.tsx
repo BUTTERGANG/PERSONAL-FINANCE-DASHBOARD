@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { Upload, CheckCircle2, Plus, Save, FileText, SkipForward } from 'lucide-react';
+import {
+  Upload, CheckCircle2, Plus, Save, FileText, SkipForward,
+  ShieldCheck, AlertTriangle, HelpCircle,
+} from 'lucide-react';
 import {
   fetchAccounts,
   createManualAccount,
@@ -10,14 +13,43 @@ import {
   confirmPdfImport,
 } from '../services/api';
 import { useAsync } from '../hooks/useAsync';
-import type { Account, ImportTxnRow, ImportResult, ParsedTransaction } from '../services/types';
+import type {
+  Account, ImportTxnRow, ImportResult, ParsedTransaction, PDFPreviewResponse,
+} from '../services/types';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
-import Money from '../components/Money';
+import StatCard from '../components/StatCard';
+import Money, { formatMoney } from '../components/Money';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import './Import.css';
+
+// Human labels for summary keys the parser emits (varies by statement type).
+const SUMMARY_LABELS: Record<string, string> = {
+  new_balance: 'New balance',
+  previous_balance: 'Previous balance',
+  ending_balance: 'Ending balance',
+  beginning_balance: 'Beginning balance',
+  minimum_payment_due: 'Minimum payment',
+  payment_due_date: 'Payment due',
+  credit_limit: 'Credit limit',
+  available_credit: 'Available credit',
+  account_value: 'Account value',
+  beginning_value: 'Beginning value',
+  ending_value: 'Ending value',
+  change_from_last_period: 'Change this period',
+  change_in_account_value: 'Change this period',
+  additions: 'Additions',
+};
+
+// Order summary fields sensibly regardless of statement type.
+const SUMMARY_ORDER = [
+  'new_balance', 'ending_balance', 'account_value',
+  'previous_balance', 'beginning_balance', 'beginning_value', 'ending_value',
+  'change_from_last_period', 'change_in_account_value', 'additions',
+  'minimum_payment_due', 'payment_due_date', 'credit_limit', 'available_credit',
+];
 
 const MANUAL_TYPES = ['checking', 'savings', 'credit', 'investment', 'loan', 'asset', 'cash'];
 
@@ -555,6 +587,114 @@ function ColSelect({
 
 // ── PDF import ─────────────────────────────────────────────────────────────────
 
+function ReconciliationBanner({ res }: { res: PDFPreviewResponse }) {
+  // Three states: reconciled to the penny, mismatch, or no check available.
+  if (res.reconciled === true) {
+    return (
+      <div className="recon-banner recon-ok">
+        <ShieldCheck size={18} />
+        <div>
+          <strong>Reconciled to the penny</strong>
+          <span> — parsed totals match the statement exactly. Safe to import.</span>
+        </div>
+      </div>
+    );
+  }
+  if (res.reconciled === false) {
+    const notes = res.reconciliation?.notes ?? [];
+    return (
+      <div className="recon-banner recon-warn">
+        <AlertTriangle size={18} />
+        <div>
+          <strong>Numbers don’t fully match the statement</strong>
+          <span> — review the rows below before importing.</span>
+          {notes.length > 0 && (
+            <ul className="recon-notes">
+              {notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="recon-banner recon-neutral">
+      <HelpCircle size={18} />
+      <div>
+        <strong>No automatic check for this statement</strong>
+        <span> — {res.parse_method === 'legacy'
+          ? 'parsed with a generic reader; double-check the rows.'
+          : 'review the rows before importing.'}</span>
+      </div>
+    </div>
+  );
+}
+
+function BalancesSummary({ res }: { res: PDFPreviewResponse }) {
+  const keys = SUMMARY_ORDER.filter((k) => k in res.summary);
+  const extras = Object.keys(res.summary).filter((k) => !SUMMARY_ORDER.includes(k));
+  const ordered = [...keys, ...extras];
+  if (!ordered.length) return null;
+  return (
+    <div className="grid metrics summary-grid">
+      {ordered.map((k) => {
+        const v = res.summary[k];
+        const display = typeof v === 'number' ? formatMoney(v) : String(v);
+        return (
+          <StatCard
+            key={k}
+            label={SUMMARY_LABELS[k] ?? k.replace(/_/g, ' ')}
+            value={display}
+            accent="accent"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function HoldingsTable({ res }: { res: PDFPreviewResponse }) {
+  if (!res.holdings.length) return null;
+  return (
+    <Card
+      title="Holdings"
+      action={<Badge variant="accent">{res.holdings.length} positions</Badge>}
+      flush
+    >
+      <div className="preview-wrap">
+        <table className="dtable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Description</th>
+              <th className="num">Quantity</th>
+              <th className="num">Price</th>
+              <th className="num">Market value</th>
+              <th className="num">Unrealized</th>
+            </tr>
+          </thead>
+          <tbody>
+            {res.holdings.map((h, i) => (
+              <tr key={i}>
+                <td><strong>{h.symbol ?? '—'}</strong></td>
+                <td>{h.description}</td>
+                <td className="num">{h.quantity ?? '—'}</td>
+                <td className="num">{h.price != null ? formatMoney(h.price) : '—'}</td>
+                <td className="num">{h.market_value != null ? formatMoney(h.market_value) : '—'}</td>
+                <td className="num">
+                  {h.unrealized_gain != null
+                    ? <Money value={h.unrealized_gain} colorize="balance" signed />
+                    : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 function PdfImport({ accounts }: { accounts: Account[] }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
@@ -562,48 +702,60 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
 
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
-  const [bankDetected, setBankDetected] = useState('');
-  const [txns, setTxns] = useState<ParsedTransaction[] | null>(null);
+  const [preview, setPreview] = useState<PDFPreviewResponse | null>(null);
+  const [syncBalance, setSyncBalance] = useState(true);
 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<{ added: number; skipped: number; balanceUpdated: boolean } | null>(null);
 
-  const preview = useMemo(() => (txns ? txns.slice(0, 8) : []), [txns]);
+  const txns = preview?.transactions ?? [];
+  const holdings = preview?.holdings ?? [];
+  const previewRows = useMemo(() => txns.slice(0, 8), [txns]);
+  // A holdings-only statement (Fidelity) has no transactions but is still importable.
+  const holdingsOnly = !!preview && txns.length === 0 && holdings.length > 0;
+  const hasContent = txns.length > 0 || holdings.length > 0;
 
   async function handleFile(file: File) {
     if (!/\.pdf$/i.test(file.name)) {
-      setParseError('Please select a PDF statement.');
+      setParseError('Please choose a PDF statement.');
       return;
     }
     setFileName(file.name);
     setParseError('');
     setImportError('');
     setResult(null);
-    setTxns(null);
-    setBankDetected('');
+    setPreview(null);
+    setSyncBalance(true);
     setParsing(true);
     try {
       const res = await previewPdfImport(file);
-      setBankDetected(res.bank_detected);
-      setTxns(res.transactions);
-      if (!res.transactions.length) {
-        setParseError('No transactions found in this PDF. Try the CSV tab instead.');
+      setPreview(res);
+      if (!res.transactions.length && !res.holdings.length) {
+        setParseError(
+          'Couldn’t find transactions or holdings in this PDF. It may be an ' +
+            'unsupported statement — try the CSV tab instead.',
+        );
       }
     } catch (e) {
-      setParseError(e instanceof Error ? e.message : 'Could not parse the PDF.');
+      setParseError(e instanceof Error ? e.message : 'Could not read the PDF.');
     } finally {
       setParsing(false);
     }
   }
 
   async function runImport() {
-    if (!txns || !accountId || !txns.length) return;
+    if (!preview || !accountId || !hasContent) return;
     setImporting(true);
     setImportError('');
     try {
-      const res = await confirmPdfImport(accountId, txns);
-      setResult(res);
+      const bal = syncBalance && preview.account_balance != null ? preview.account_balance : undefined;
+      const res = await confirmPdfImport(accountId, txns, bal);
+      setResult({
+        added: res.added,
+        skipped: res.skipped_duplicates,
+        balanceUpdated: !!res.balance_updated,
+      });
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Import failed.');
     } finally {
@@ -613,8 +765,7 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
 
   function reset() {
     setFileName('');
-    setTxns(null);
-    setBankDetected('');
+    setPreview(null);
     setParseError('');
     setImportError('');
     setResult(null);
@@ -625,17 +776,19 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
       <Card>
         <EmptyState
           title="Create an account first"
-          hint="Add a manual account (other tab) so imported transactions have somewhere to go."
+          hint="Add a manual account (Manual tab) so imported data has somewhere to go."
         />
       </Card>
     );
   }
 
+  const canSyncBalance = preview?.account_balance != null;
+
   return (
     <div className="stack">
       <Card title="1 · Destination account">
         <div className="field" style={{ maxWidth: 360 }}>
-          <span className="field-label">Transactions will be added to</span>
+          <span className="field-label">Import into</span>
           <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
@@ -662,7 +815,7 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
             {fileName ? <strong>{fileName}</strong> : 'Click or drop a bank-statement PDF'}
           </div>
           <div className="dropzone-hint">
-            The statement is parsed on the server; nothing is saved until you confirm.
+            Parsed on the server. Nothing is saved until you confirm.
           </div>
           <input
             ref={inputRef}
@@ -683,80 +836,105 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
         )}
       </Card>
 
-      {txns && txns.length > 0 && (
+      {preview && hasContent && (
         <>
           <Card
-            title="3 · Review parsed transactions"
+            title={`3 · Review ${preview.statement_type.replace(/_/g, ' ')}`}
             action={
               <div className="pdf-review-meta">
-                {bankDetected && <Badge>{bankDetected}</Badge>}
-                <Badge variant="accent">{txns.length} transactions</Badge>
+                <Badge>{preview.bank_detected}</Badge>
+                {txns.length > 0 && <Badge variant="accent">{txns.length} transactions</Badge>}
+                {holdings.length > 0 && <Badge variant="accent">{holdings.length} holdings</Badge>}
               </div>
             }
           >
-            <div className="preview-wrap">
-              <table className="dtable preview">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th className="num">Amount</th>
-                    <th>Category</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.map((t, i) => (
-                    <tr key={i}>
-                      <td>{t.date}</td>
-                      <td>{t.description}</td>
-                      <td className="num">
-                        <Money value={t.amount} />
-                      </td>
-                      <td>{t.category ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {txns.length > preview.length && (
-              <div className="dropzone-hint" style={{ marginTop: 8 }}>
-                Showing first {preview.length} of {txns.length}.
-              </div>
-            )}
+            <ReconciliationBanner res={preview} />
+            <BalancesSummary res={preview} />
           </Card>
+
+          {txns.length > 0 && (
+            <Card title="Transactions" flush>
+              <div className="preview-wrap">
+                <table className="dtable">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Description</th>
+                      <th className="num">Amount</th>
+                      <th>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((t, i) => (
+                      <tr key={i}>
+                        <td>{t.date}</td>
+                        <td>{t.description}</td>
+                        <td className="num"><Money value={t.amount} /></td>
+                        <td>{t.category ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {txns.length > previewRows.length && (
+                <div className="dropzone-hint" style={{ padding: '8px 16px' }}>
+                  Showing first {previewRows.length} of {txns.length}.
+                </div>
+              )}
+            </Card>
+          )}
+
+          <HoldingsTable res={preview} />
 
           <Card title="4 · Confirm import">
             {result ? (
               <div className="import-result">
                 <CheckCircle2 size={20} className="ok" />
                 <div>
-                  <strong>Imported {result.added} transactions</strong>
+                  <strong>
+                    {result.added > 0
+                      ? `Imported ${result.added} transaction${result.added === 1 ? '' : 's'}`
+                      : 'Statement imported'}
+                  </strong>
                   <div className="result-meta">
-                    {result.skipped_duplicates > 0
-                      ? `${result.skipped_duplicates} duplicates skipped`
-                      : 'All rows imported cleanly.'}
+                    {result.skipped > 0 && `${result.skipped} duplicates skipped. `}
+                    {result.balanceUpdated && 'Account balance updated. '}
+                    {result.added === 0 && !result.balanceUpdated && 'Nothing new to add.'}
+                    {result.added > 0 && result.skipped === 0 && !result.balanceUpdated && 'All rows imported cleanly.'}
                   </div>
                   <div className="wizard-actions" style={{ marginTop: 12 }}>
-                    <button className="btn btn-primary" onClick={reset}>
-                      Import another PDF
-                    </button>
+                    <button className="btn btn-primary" onClick={reset}>Import another PDF</button>
                   </div>
                 </div>
               </div>
             ) : (
               <>
-                <button
-                  className="btn btn-primary"
-                  disabled={importing}
-                  onClick={runImport}
-                >
+                {canSyncBalance && (
+                  <label className="sync-balance-row">
+                    <input
+                      type="checkbox"
+                      checked={syncBalance}
+                      onChange={(e) => setSyncBalance(e.target.checked)}
+                    />
+                    <span>
+                      Set account balance to{' '}
+                      <strong>{formatMoney(preview.account_balance as number)}</strong>
+                      <span className="sync-balance-hint">
+                        {' '}(the statement’s {holdingsOnly ? 'account value' : 'ending balance'})
+                      </span>
+                    </span>
+                  </label>
+                )}
+                <button className="btn btn-primary" disabled={importing} onClick={runImport}>
                   {importing ? <Spinner /> : <Upload size={15} />}
-                  {importing ? 'Importing…' : `Import ${txns.length} transactions`}
+                  {importing
+                    ? 'Importing…'
+                    : holdingsOnly
+                      ? 'Update account balance'
+                      : `Import ${txns.length} transaction${txns.length === 1 ? '' : 's'}`}
                 </button>
                 {importError && (
-                  <div className="section-error" style={{ marginTop: 12 }}>
-                    {importError}
-                  </div>
+                  <div className="section-error" style={{ marginTop: 12 }}>{importError}</div>
                 )}
               </>
             )}

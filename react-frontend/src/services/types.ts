@@ -111,6 +111,13 @@ export interface ImportResult {
 export interface Health {
   status: string;
   sync_interval_hours: number;
+  pin_required?: boolean;
+}
+
+// A learned merchant→category rule.
+export interface CategoryRule {
+  merchant_key: string;
+  category: string;
 }
 
 // PDF import types
@@ -121,8 +128,50 @@ export interface ParsedTransaction {
   category?: string | null;
 }
 
+// Investment position from a Fidelity statement.
+export interface Holding {
+  description: string;
+  symbol: string | null;
+  quantity: number | null;
+  price: number | null;
+  market_value: number | null;
+  cost_basis: number | null;
+  unrealized_gain: number | null;
+}
+
+// Per-section parsed-vs-printed comparison from the reconciliation self-check.
+export interface ReconciliationSection {
+  parsed: number;
+  printed: number;
+  count: number;
+  match: boolean;
+}
+
+export interface Reconciliation {
+  ok: boolean;
+  sections: Record<string, ReconciliationSection>;
+  balance_ok: boolean | null;
+  notes: string[];
+}
+
 export interface PDFPreviewResponse {
   bank_detected: string;
+  statement_type: string; // e.g. "chase_checking", "fidelity_crypto"
+  parse_method: string; // "sectioned" | "legacy" | "generic_table" | "investment"
   transactions: ParsedTransaction[];
   transaction_count: number;
+  holdings: Holding[];
+  // reconciled: true = parsed sums matched the statement's printed totals to the
+  // penny; false = mismatch (review before importing); null = no reconciliation
+  // available for this statement type.
+  reconciled: boolean | null;
+  reconciliation: Reconciliation | null;
+  // Headline figures (balances, due date, limits); keys vary by statement type.
+  summary: Record<string, number | string>;
+  // The statement's stated account balance, offered to sync onto the account.
+  account_balance: number | null;
+}
+
+export interface PdfImportResult extends ImportResult {
+  balance_updated?: boolean;
 }

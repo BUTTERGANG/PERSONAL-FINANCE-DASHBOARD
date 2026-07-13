@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import accounts, budgets, manual, networth, plaid_routes, subscriptions, sync_routes, transactions
+from .auth import PinAuthMiddleware
 from .config import get_settings
 from .database import SessionLocal, init_db
 
@@ -61,9 +62,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# PIN gate on /api/* (no-op when settings.dashboard_pin is empty).
+# Added before CORS so CORS stays the OUTERMOST layer — 401 responses still
+# carry CORS headers, so the browser can read the 401 instead of a CORS error.
+app.add_middleware(PinAuthMiddleware, pin=settings.dashboard_pin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.app_base_url, "http://localhost:8501"],
+    allow_origins=[settings.app_base_url, "http://localhost:5173", "http://localhost:8501"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -81,4 +87,8 @@ app.include_router(manual.router, prefix="/api/manual", tags=["manual"])
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "sync_interval_hours": settings.sync_interval_hours}
+    return {
+        "status": "ok",
+        "sync_interval_hours": settings.sync_interval_hours,
+        "pin_required": bool(settings.dashboard_pin),
+    }

@@ -11,9 +11,11 @@ import {
   Upload,
   Settings as SettingsIcon,
   Menu,
+  Lock,
 } from 'lucide-react';
 import ThemeToggle from './components/ThemeToggle';
 import { triggerSync } from './services/api';
+import { getPin, clearPin } from './services/pin';
 import './App.css';
 
 const navigation = [
@@ -98,6 +100,16 @@ export default function App({ children }: { children?: React.ReactNode }) {
               <RefreshCw size={16} className={syncing ? 'spin-icon' : ''} />
               <span className="sync-label">{syncing ? 'Syncing…' : 'Sync'}</span>
             </button>
+            {getPin() && (
+              <button
+                className="btn btn-icon"
+                onClick={() => clearPin()}
+                aria-label="Lock dashboard"
+                title="Lock dashboard"
+              >
+                <Lock size={16} />
+              </button>
+            )}
             <ThemeToggle />
           </div>
         </header>

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Wand2 } from 'lucide-react';
 import {
   fetchAccounts,
   fetchCategories,
   fetchTransactions,
+  updateTransactionCategory,
+  autoCategorize,
 } from '../services/api';
 import { useAsync } from '../hooks/useAsync';
 import type { Account, Transaction } from '../services/types';
@@ -19,6 +21,56 @@ import AreaTrend from '../components/charts/AreaTrend';
 import './Transactions.css';
 
 const PERIODS = [7, 30, 60, 90, 365];
+
+// Stable dot color per category. Semantic buckets use semantic tokens; spend
+// categories use a fixed hue each so the same category reads the same everywhere.
+const CATEGORY_HUE: Record<string, string> = {
+  'Entertainment': '#8b5cf6',
+  'Food and Drink': '#f59e0b',
+  'Groceries': '#16a34a',
+  'Health and Fitness': '#ec4899',
+  'Shopping': '#0ea5e9',
+  'Travel': '#14b8a6',
+  'Income': 'var(--positive)',
+  'Transfer': '#6366f1',
+  'Payment': '#64748b',
+  'Fees & Interest': 'var(--negative)',
+  'Cash & ATM': '#a16207',
+  'Subscriptions': 'var(--accent)',
+  'Other': 'var(--text-muted)',
+};
+
+// Inline category editor — a dropdown styled as a chip that PATCHes on change.
+function CategoryCell({
+  txn,
+  categories,
+  onChange,
+}: {
+  txn: Transaction;
+  categories: string[];
+  onChange: (id: string, category: string | null) => void;
+}) {
+  const value = txn.category ?? '';
+  const hue = value ? CATEGORY_HUE[value] ?? 'var(--text-muted)' : 'transparent';
+  return (
+    <div className="cat-cell" data-uncategorized={value ? undefined : 'true'}>
+      <span className="cat-dot" style={{ background: hue }} aria-hidden />
+      <select
+        className="cat-select"
+        value={value}
+        onChange={(e) => onChange(txn.id, e.target.value || null)}
+        aria-label="Category"
+      >
+        <option value="">Uncategorized</option>
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export default function Transactions() {
   const [days, setDays] = useState(30);
@@ -36,6 +88,41 @@ export default function Transactions() {
   const accounts = accountsQ.data ?? [];
   const categories = categoriesQ.data ?? [];
   const txns = txnsQ.data ?? [];
+
+  const [autocatting, setAutocatting] = useState(false);
+  const [notice, setNotice] = useState('');
+  const uncategorizedCount = txns.filter((t) => !t.category).length;
+
+  async function changeCategory(id: string, category: string | null) {
+    // Learn a merchant rule and propagate (apply_to_merchant defaults true).
+    try {
+      const res = await updateTransactionCategory(id, category);
+      if (res.rows_updated > 1) {
+        setNotice(`Updated ${res.rows_updated} transactions from this merchant.`);
+      }
+      txnsQ.reload();
+      categoriesQ.reload();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : 'Could not update category.');
+    }
+  }
+
+  async function runAutoCategorize() {
+    setAutocatting(true);
+    setNotice('');
+    try {
+      const res = await autoCategorize();
+      setNotice(
+        `Auto-categorized ${res.categorized} transaction${res.categorized === 1 ? '' : 's'}` +
+          (res.still_uncategorized > 0 ? ` · ${res.still_uncategorized} still need a category.` : '.'),
+      );
+      txnsQ.reload();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : 'Auto-categorize failed.');
+    } finally {
+      setAutocatting(false);
+    }
+  }
 
   const acctName = useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.id, a.name])),
@@ -115,7 +202,11 @@ export default function Transactions() {
       sortValue: (t) => t.amount,
       render: (t) => <Money value={t.amount} colorize="balance" />,
     },
-    { key: 'category', header: 'Category', render: (t) => t.category ?? <span className="muted">—</span> },
+    {
+      key: 'category',
+      header: 'Category',
+      render: (t) => <CategoryCell txn={t} categories={categories} onChange={changeCategory} />,
+    },
     { key: 'account', header: 'Account', render: (t) => acctName[t.account_id] ?? t.account_id },
     {
       key: 'status',
@@ -133,12 +224,26 @@ export default function Transactions() {
         subtitle="Filterable history across all accounts"
         actions={
           txns.length > 0 ? (
-            <button className="btn" onClick={exportCsv}>
-              <Download size={15} /> Export CSV
-            </button>
+            <div className="header-actions">
+              {uncategorizedCount > 0 && (
+                <button className="btn" onClick={runAutoCategorize} disabled={autocatting}>
+                  {autocatting ? <Spinner /> : <Wand2 size={15} />}
+                  Auto-categorize {uncategorizedCount}
+                </button>
+              )}
+              <button className="btn" onClick={exportCsv}>
+                <Download size={15} /> Export CSV
+              </button>
+            </div>
           ) : undefined
         }
       />
+
+      {notice && (
+        <div className="cat-notice" onAnimationEnd={() => setNotice('')}>
+          {notice}
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

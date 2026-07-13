@@ -1,17 +1,23 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Transaction
+from ..models import CategoryRule, Transaction
+from ..categorize import CATEGORIES, auto_categorize, merchant_key
 
 router = APIRouter()
 
 _UTC = timezone.utc
+
+
+def load_rules(db: Session) -> dict[str, str]:
+    """All learned merchant→category rules as a dict for auto_categorize()."""
+    return {r.merchant_key: r.category for r in db.query(CategoryRule).all()}
 
 
 class TransactionOut(BaseModel):
@@ -122,11 +128,112 @@ def month_over_month(db: Session = Depends(get_db)):
 
 @router.get("/categories")
 def list_categories(db: Session = Depends(get_db)):
-    rows = (
-        db.query(Transaction.category)
-        .filter(Transaction.category.isnot(None))
-        .distinct()
-        .order_by(Transaction.category)
-        .all()
-    )
-    return [r.category for r in rows]
+    """
+    The category taxonomy for dropdowns: the fixed set (6 spend + system buckets)
+    unioned with any custom categories already present in the data, in a stable order.
+    """
+    in_use = {
+        r.category
+        for r in db.query(Transaction.category).filter(Transaction.category.isnot(None)).distinct()
+    }
+    extras = sorted(in_use - set(CATEGORIES))
+    return CATEGORIES + extras
+
+
+# ── Categorization ──────────────────────────────────────────────────────────────
+
+class CategoryUpdate(BaseModel):
+    category: Optional[str] = None       # None/"" clears the category
+    # When true (default), remember this merchant→category and apply it to the
+    # merchant's other rows + future imports.
+    apply_to_merchant: bool = True
+
+
+@router.patch("/{txn_id}")
+def update_category(txn_id: str, payload: CategoryUpdate, db: Session = Depends(get_db)):
+    """
+    Set (or clear) a transaction's category. By default this also learns a
+    merchant→category rule and re-applies it to the merchant's other rows so the
+    same merchant never has to be categorized twice.
+    """
+    txn = db.get(Transaction, txn_id)
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+
+    new_category = (payload.category or "").strip() or None
+    old_category = txn.category
+    txn.category = new_category
+
+    applied = 1
+    key = merchant_key(txn.description or "", txn.merchant)
+
+    if payload.apply_to_merchant and key:
+        # Upsert / remove the learned rule.
+        rule = db.query(CategoryRule).filter(CategoryRule.merchant_key == key).one_or_none()
+        if new_category:
+            if rule:
+                rule.category = new_category
+            else:
+                db.add(CategoryRule(merchant_key=key, category=new_category))
+        elif rule:
+            db.delete(rule)
+
+        # Re-apply to the merchant's other rows. To avoid stomping unrelated manual
+        # edits, only touch rows that are uncategorized or still hold the old value.
+        for other in db.query(Transaction).filter(Transaction.id != txn_id):
+            if merchant_key(other.description or "", other.merchant) != key:
+                continue
+            if other.category in (None, old_category):
+                other.category = new_category
+                applied += 1
+
+    db.commit()
+    return {"status": "updated", "category": new_category, "rows_updated": applied}
+
+
+@router.post("/auto-categorize")
+def run_auto_categorize(only_uncategorized: bool = True, db: Session = Depends(get_db)):
+    """
+    Apply system buckets + learned rules + the seed map to transactions. By default
+    only fills in uncategorized rows; pass only_uncategorized=false to re-run over all.
+    Returns how many rows were categorized.
+    """
+    rules = load_rules(db)
+    q = db.query(Transaction)
+    if only_uncategorized:
+        q = q.filter(Transaction.category.is_(None))
+
+    updated = 0
+    for t in q.all():
+        cat = auto_categorize(t.description or "", t.amount, t.merchant, rules)
+        if cat and cat != t.category:
+            t.category = cat
+            updated += 1
+
+    db.commit()
+    total_uncat = db.query(Transaction).filter(Transaction.category.is_(None)).count()
+    return {"status": "done", "categorized": updated, "still_uncategorized": total_uncat}
+
+
+# ── Learned rules ────────────────────────────────────────────────────────────────
+
+class RuleOut(BaseModel):
+    merchant_key: str
+    category: str
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/rules", response_model=list[RuleOut])
+def list_rules(db: Session = Depends(get_db)):
+    return db.query(CategoryRule).order_by(CategoryRule.merchant_key).all()
+
+
+@router.delete("/rules/{merchant_key}")
+def delete_rule(merchant_key: str, db: Session = Depends(get_db)):
+    rule = db.query(CategoryRule).filter(CategoryRule.merchant_key == merchant_key).one_or_none()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    db.delete(rule)
+    db.commit()
+    return {"status": "deleted", "merchant_key": merchant_key}

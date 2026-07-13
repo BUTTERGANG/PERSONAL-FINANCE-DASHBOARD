@@ -7,12 +7,12 @@ amount. Runs live against the transactions table — no separate storage needed
 beyond the user's ignore list.
 """
 
-import re
 import statistics
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from .categorize import extract_merchant, merchant_key
 from .models import IgnoredSubscription, Transaction
 
 _UTC = timezone.utc
@@ -28,18 +28,14 @@ _FREQUENCIES = [
     ("annual", 350, 380, 1),
 ]
 
-_MULTI_SPACE = re.compile(r"\s+")
-_NOISE = re.compile(r"[0-9#*].*$")  # drop trailing ids like "AMZN*1A2B3" or store numbers
-
 
 def _merchant_key(txn: Transaction) -> str:
-    """Stable grouping key: prefer the merchant, else the cleaned description."""
-    if txn.merchant:
-        return txn.merchant.strip().lower()
-    desc = (txn.description or "").lower()
-    desc = _NOISE.sub("", desc)
-    desc = _MULTI_SPACE.sub(" ", desc).strip()
-    return desc or (txn.description or "").strip().lower()
+    """
+    Stable grouping key via the shared merchant extractor. (The previous version
+    cut the description at the first digit, collapsing every card purchase to
+    "card purchase" — so subscription groups were bogus.)
+    """
+    return merchant_key(txn.description or "", txn.merchant)
 
 
 def _classify(median_gap: float):
@@ -96,7 +92,7 @@ def detect_subscriptions(db: Session) -> list[dict]:
         results.append(
             {
                 "merchant_key": key,
-                "merchant": (last.merchant or last.description or key).strip(),
+                "merchant": (last.merchant or extract_merchant(last.description or "") or key).strip(),
                 "category": last.category or "Uncategorized",
                 "amount": round(median_amt, 2),
                 "frequency": frequency,

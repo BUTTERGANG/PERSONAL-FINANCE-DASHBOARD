@@ -71,6 +71,22 @@ class IgnoredSubscription(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
 
 
+class CategoryRule(Base):
+    """
+    A learned merchant→category mapping. Created when the user corrects a
+    transaction's category; re-applied to existing rows and future imports so a
+    merchant only has to be categorized once.
+    """
+
+    __tablename__ = "category_rules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    merchant_key = Column(String, unique=True, nullable=False)
+    category = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class Budget(Base):
     """A monthly spending limit for one category."""
 

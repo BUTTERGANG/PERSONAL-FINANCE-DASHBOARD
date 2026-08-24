@@ -14,3 +14,5 @@ channel = "stable-24_05"
 localPort = 5173
 externalPort = 80
 exposeLocalhost = true
+[env]
+CLAUDE_CONFIG_DIR = "/home/runner/workspace/.local/state/claude"

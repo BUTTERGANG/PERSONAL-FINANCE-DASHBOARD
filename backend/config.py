@@ -24,7 +24,13 @@ class Settings(BaseSettings):
     backend_url: str = "http://localhost:8000"
     app_base_url: str = "http://localhost:8501"
 
-    # Dashboard PIN gate (frontend). Empty = no gate (dashboard is open).
+    # Dashboard PIN gate (frontend) — NOTE: REQUIRED for production.
+    #
+    # WARNING (footgun): an empty/blank `dashboard_pin` means the dashboard is
+    # OPEN — there is NO authentication at all. Anyone who knows the URL can read
+    # your financial data. A real DASHBOARD_PIN must be set in `.env` (or the
+    # Replit Secrets panel) before exposing this app publicly. Do not ship/live
+    # with this value empty.
     dashboard_pin: str = ""
 
 

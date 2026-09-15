@@ -11,11 +11,14 @@ anyone who knows the address. Pair it with HTTPS (Replit provides it) so the hea
 isn't sent in the clear.
 """
 
+import logging
 import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 PIN_HEADER = "X-Dashboard-Pin"
 
@@ -31,6 +34,15 @@ class PinAuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, pin: str):
         super().__init__(app)
         self._pin = pin or ""
+        # FOOTGUN GUARD: empty pin == dashboard is completely OPEN (no auth).
+        # Loudly log so nobody ships this publicly by accident.
+        if not self._pin:
+            logger.warning(
+                "DASHBOARD_PIN is EMPTY — the dashboard PIN gate is DISABLED and "
+                "the /api/* endpoints are OPEN (no authentication). Financial data "
+                "is readable by anyone with the URL. Set a strong DASHBOARD_PIN in "
+                ".env / Replit Secrets before exposing this app publicly."
+            )
 
     async def dispatch(self, request: Request, call_next):
         # Gate disabled → behave exactly as before.

@@ -56,8 +56,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setPinValue('');
         setStatus('open');
       } else {
-        setError('Incorrect PIN.');
+        // Clear first: clearPin() fires the onPinChange(null) listener, which
+        // would otherwise overwrite this error with "Session expired". Set the
+        // user-facing message AFTER so it wins.
         clearPin();
+        setError('Incorrect PIN.');
       }
     } catch {
       setError('Could not reach the server. Is the backend running?');

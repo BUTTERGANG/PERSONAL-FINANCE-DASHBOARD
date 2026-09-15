@@ -47,8 +47,8 @@ All documentation lives in `THE-VISION/`:
 
 ```
 backend/           FastAPI app, Plaid client, OFX client, sync engine, PDF statement parser
-react-frontend/    React + Vite + Recharts dashboard (all 8 pages built)
-frontend/          OLD: Streamlit dashboard (superseded by react-frontend/, kept for reference)
+react-frontend/    React + Vite + Recharts dashboard (all 8 pages built) — the only frontend
+frontend/          REMOVED 2026-09-15: legacy Streamlit dashboard (crashed on Transactions)
 THE-VISION/        Documentation
 scripts/           generate_key.py, pre-commit hook
 .env.example       Template for environment variables (copy to .env locally)

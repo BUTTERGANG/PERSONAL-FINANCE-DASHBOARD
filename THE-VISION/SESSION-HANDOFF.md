@@ -86,7 +86,7 @@ react-frontend/       ← NEW: React + Vite + Recharts frontend (Phase 2 UI upgr
       colors.ts        ← Runtime chart color accessor (reads CSS vars)
     components.css     ← Shared component styles (cards, tables, badges, buttons, inputs, spinner, empty state)
 
-frontend/             ← OLD: Streamlit dashboard (5 pages) — kept for reference, not deployed
+frontend/             REMOVED 2026-09-15: legacy Streamlit dashboard (superseded by react-frontend/; it crashed the server on Transactions, so it was retired)
 THE-VISION/
   ARCHITECTURE.md     ← Detailed system diagram and data flow
   SETUP.md            ← Step-by-step setup from zero

@@ -61,7 +61,7 @@ export default function AreaTrend({ data, xKey, yKey, height = 240, color }: Are
             boxShadow: '0 8px 24px rgba(16,24,40,0.12)',
           }}
           labelStyle={{ color: c.textMuted, marginBottom: 4 }}
-          formatter={(v: number) => [formatMoney(v), '']}
+          formatter={(v) => (v == null ? ['', ''] : [formatMoney(Number(v)), ''])}
         />
         <Area
           type="monotone"

@@ -29,13 +29,11 @@ apscheduler==3.10.4
 
 # Document import — PDF bank-statement parsing (primary data path)
 pdfplumber==0.11.4
-pymupdf==1.23.26
+pymupdf>=1.24
 
 # ─────────────────────────────────────────────────────────────
-#  Legacy Streamlit frontend (frontend/) — SUPERSEDED by
-#  react-frontend/ and NOT launched by run.sh. Removed from the
-#  default install to keep Replit boots fast. To run the old
-#  Streamlit UI, reinstall:
-#      streamlit==1.41.1  plotly==5.24.1  pandas==2.2.3
-#      httpx==0.28.1      jinja2==3.1.5
+#  Legacy Streamlit frontend (frontend/) — RETIRED 2026-09-15.
+#  Superseded by react-frontend/ (all 8 pages built). The Streamlit
+#  UI crashed the server on the Transactions page (native segfault),
+#  so the directory was removed. Run `bash run.sh` for the React UI.
 # ─────────────────────────────────────────────────────────────

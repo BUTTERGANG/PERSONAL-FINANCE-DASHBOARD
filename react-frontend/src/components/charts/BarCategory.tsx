@@ -87,7 +87,7 @@ export default function BarCategory({
             color: c.text,
             fontSize: 12.5,
           }}
-          formatter={(v: number) => [formatMoney(v), '']}
+          formatter={(v) => (v == null ? ['', ''] : [formatMoney(Number(v)), ''])}
         />
         <Bar dataKey="value" fill={fill} radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}>
           {data.map((_, i) => (

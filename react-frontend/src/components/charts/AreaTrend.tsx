@@ -39,13 +39,13 @@ export default function AreaTrend({ data, xKey, yKey, height = 240, color }: Are
         <CartesianGrid stroke={c.grid} vertical={false} />
         <XAxis
           dataKey={xKey}
-          tick={{ fill: c.textMuted, fontSize: 11 }}
+          tick={{ fill: c.textMuted, fontSize: 12 }}
           tickLine={false}
           axisLine={{ stroke: c.grid }}
           minTickGap={28}
         />
         <YAxis
-          tick={{ fill: c.textMuted, fontSize: 11 }}
+          tick={{ fill: c.textMuted, fontSize: 12 }}
           tickLine={false}
           axisLine={false}
           tickFormatter={compact}

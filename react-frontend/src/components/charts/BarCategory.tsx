@@ -45,7 +45,7 @@ export default function BarCategory({
           <>
             <XAxis
               type="number"
-              tick={{ fill: c.textMuted, fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 12 }}
               tickLine={false}
               axisLine={{ stroke: c.grid }}
               tickFormatter={compact}
@@ -64,13 +64,13 @@ export default function BarCategory({
             <XAxis
               type="category"
               dataKey="label"
-              tick={{ fill: c.text, fontSize: 11 }}
+              tick={{ fill: c.text, fontSize: 12 }}
               tickLine={false}
               axisLine={{ stroke: c.grid }}
             />
             <YAxis
               type="number"
-              tick={{ fill: c.textMuted, fontSize: 11 }}
+              tick={{ fill: c.textMuted, fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={compact}

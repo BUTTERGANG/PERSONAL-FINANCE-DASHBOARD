@@ -75,6 +75,36 @@ export interface CarryItemRow {
   merchant_keywords: string;
   category: string | null;
   sort_order: number;
+  is_debt: boolean;
+  balance: number | null;
+  apr: number | null;
+  min_payment: number | null;
+}
+
+export interface PayoffDebt {
+  id: number;
+  name: string;
+  balance: number;
+  apr: number;
+  min_payment: number;
+}
+
+export interface PayoffPlan {
+  months: number | null;
+  debt_free: string | null;
+  total_interest: number;
+  per_debt: Record<number, number | null>;
+}
+
+export interface PayoffResponse {
+  debts: PayoffDebt[];
+  missing_balance: string[];
+  plan: {
+    extra_payment: number;
+    baseline: PayoffPlan;
+    avalanche: PayoffPlan | null;
+    interest_saved: number | null;
+  } | null;
 }
 
 export interface CarryTotals {

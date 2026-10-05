@@ -17,6 +17,7 @@ import type {
   CategoryRule,
   CarrySummary,
   CarryItemRow,
+  PayoffResponse,
 } from './types';
 
 import { pinHeader, clearPin } from './pin';
@@ -138,10 +139,16 @@ export const updateCarryItem = (
     merchant_keywords?: string | null;
     category?: string | null;
     sort_order?: number;
+    is_debt?: boolean;
+    balance?: number | null;
+    apr?: number | null;
+    min_payment?: number | null;
   },
 ) => send<{ ok: boolean; id: number }>(`/carry/${id}`, 'PATCH', patch);
 export const deleteCarryItem = (id: number) =>
   send<{ ok: boolean }>(`/carry/${id}`, 'DELETE');
+export const fetchPayoff = (extra?: number) =>
+  get<PayoffResponse>('/carry/payoff', extra ? { extra } : undefined);
 
 // --- Subscriptions ---
 export const fetchSubscriptions = () => get<Subscription[]>('/subscriptions/');

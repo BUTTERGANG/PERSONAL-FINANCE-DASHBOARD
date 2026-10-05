@@ -118,3 +118,40 @@ def test_category_fallback_when_no_keywords(db):
     summary = carry_summary(db, month="2026-10")
     item = next(i for i in summary["items"] if i["name"] == "Misc travel")
     assert item["actual"] == 62.10
+
+
+def test_payoff_plan_single_debt(db):
+    from backend.carry import payoff_plan
+
+    debts = [{"id": 1, "name": "Card", "balance": 1200.0, "apr": 0.0, "min_payment": 100.0}]
+    plan = payoff_plan(debts)
+    assert plan["baseline"]["months"] == 12
+    assert plan["baseline"]["total_interest"] == 0.0
+
+
+def test_payoff_plan_apr_and_unpayable(db):
+    from backend.carry import payoff_plan
+
+    # 24% APR on $1,000: at $100/mo it takes more than 12 months and accrues interest.
+    debts = [{"id": 1, "name": "Card", "balance": 1000.0, "apr": 24.0, "min_payment": 100.0}]
+    plan = payoff_plan(debts)
+    assert plan["baseline"]["months"] >= 12
+    assert plan["baseline"]["total_interest"] > 0
+
+    # Payment below monthly interest → never pays off.
+    stuck = [{"id": 1, "name": "Card", "balance": 100000.0, "apr": 24.0, "min_payment": 100.0}]
+    assert payoff_plan(stuck)["baseline"]["months"] is None
+
+
+def test_payoff_avalanche_saves_interest(db):
+    from backend.carry import payoff_plan
+
+    debts = [
+        {"id": 1, "name": "Low", "balance": 1000.0, "apr": 10.0, "min_payment": 50.0},
+        {"id": 2, "name": "High", "balance": 1000.0, "apr": 30.0, "min_payment": 50.0},
+    ]
+    plan = payoff_plan(debts, extra=100.0)
+    assert plan["avalanche"]["months"] < plan["baseline"]["months"]
+    assert plan["interest_saved"] > 0
+    # Highest APR debt is targeted first: cleared before the low-APR one.
+    assert plan["avalanche"]["per_debt"][2] is not None

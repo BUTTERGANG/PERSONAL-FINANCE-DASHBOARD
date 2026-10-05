@@ -151,3 +151,38 @@
   color: var(--text-muted);
   margin: var(--space-3) 0 0;
 }
+
+.carry-note-warn {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.carry-debt-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+
+.carry-extra-row {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.carry-extra-row .field {
+  min-width: 220px;
+}
+
+.carry-debt-toggle {
+  min-width: 180px;
+}

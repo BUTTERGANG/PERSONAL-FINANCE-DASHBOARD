@@ -115,6 +115,11 @@ class CarryItem(Base):
     monthly_high = Column(Float, nullable=True)   # estimated monthly high (ranges only)
     merchant_keywords = Column(Text, nullable=True)  # comma-separated, case-insensitive match on merchant/description
     category = Column(String, nullable=True)      # fallback match: transaction category
+    # Debt fields (optional — only credit/loan items carry them)
+    balance = Column(Float, nullable=True)        # current outstanding balance
+    apr = Column(Float, nullable=True)            # annual percentage rate, e.g. 22.5 = 22.5%
+    min_payment = Column(Float, nullable=True)    # minimum monthly payment
+    is_debt = Column(Boolean, default=False)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)

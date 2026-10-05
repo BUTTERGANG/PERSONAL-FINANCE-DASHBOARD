@@ -17,6 +17,10 @@ class CarryItemIn(BaseModel):
     merchant_keywords: str | None = None
     category: str | None = None
     sort_order: int = 0
+    is_debt: bool = False
+    balance: float | None = None
+    apr: float | None = None
+    min_payment: float | None = None
 
 
 class CarryItemPatch(BaseModel):
@@ -27,6 +31,10 @@ class CarryItemPatch(BaseModel):
     merchant_keywords: str | None = None
     category: str | None = None
     sort_order: int | None = None
+    is_debt: bool | None = None
+    balance: float | None = None
+    apr: float | None = None
+    min_payment: float | None = None
 
 
 @router.get("/")
@@ -35,6 +43,36 @@ def get_carry(month: str | None = None, db: Session = Depends(get_db)):
     summary = carry_logic.carry_summary(db, month)
     summary["trend"] = carry_logic.recent_month_actuals(db)
     return summary
+
+
+@router.get("/payoff")
+def get_payoff(extra: float = 0.0, db: Session = Depends(get_db)):
+    """
+    Debt payoff calculator. Debts are carry items flagged is_debt with a
+    balance set. `extra` is an additional monthly payment applied avalanche
+    style (highest APR first).
+    """
+    from .. import carry as carry_logic
+
+    carry_logic.seed_carry_items(db)
+    debts = [
+        {
+            "id": it.id,
+            "name": it.name,
+            "balance": float(it.balance),
+            "apr": float(it.apr or 0.0),
+            "min_payment": float(it.min_payment or 0.0),
+        }
+        for it in db.query(CarryItem).filter(CarryItem.is_debt == True).all()  # noqa: E712
+        if it.balance and it.balance > 0 and it.apr and (it.min_payment or 0) > 0
+    ]
+    missing = [
+        it.name
+        for it in db.query(CarryItem).filter(CarryItem.is_debt == True).all()  # noqa: E712
+        if not (it.balance and it.balance > 0)
+    ]
+    plan = carry_logic.payoff_plan(debts, extra) if debts else None
+    return {"debts": debts, "missing_balance": missing, "plan": plan}
 
 
 @router.post("/", status_code=201)

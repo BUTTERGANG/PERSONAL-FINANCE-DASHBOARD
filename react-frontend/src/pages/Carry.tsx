@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
   fetchCarry,
+  fetchPayoff,
   addCarryItem,
   updateCarryItem,
   deleteCarryItem,
 } from '../services/api';
 import { useAsync } from '../hooks/useAsync';
-import type { CarryItemRow, CarrySummary } from '../services/types';
+import type { CarryItemRow, CarrySummary, PayoffResponse } from '../services/types';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import Money, { formatMoney } from '../components/Money';
@@ -41,9 +42,24 @@ interface Draft {
   low: string;
   high: string;
   keywords: string;
+  is_debt: boolean;
+  balance: string;
+  apr: string;
+  min_payment: string;
 }
 
-const emptyDraft: Draft = { id: null, name: '', group: 'Software', low: '', high: '', keywords: '' };
+const emptyDraft: Draft = {
+  id: null,
+  name: '',
+  group: 'Software',
+  low: '',
+  high: '',
+  keywords: '',
+  is_debt: false,
+  balance: '',
+  apr: '',
+  min_payment: '',
+};
 
 export default function Carry() {
   const [month, setMonth] = useState<string>(() => {
@@ -51,6 +67,11 @@ export default function Carry() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const q = useAsync<CarrySummary>(() => fetchCarry(month), [month]);
+  const [extra, setExtra] = useState('');
+  const payoffQ = useAsync<PayoffResponse>(
+    () => fetchPayoff(parseFloat(extra) > 0 ? parseFloat(extra) : undefined),
+    [extra, q.data ? 1 : 0],
+  );
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,6 +89,10 @@ export default function Carry() {
       low: String(item.monthly_low),
       high: item.monthly_high !== item.monthly_low ? String(item.monthly_high) : '',
       keywords: item.merchant_keywords,
+      is_debt: item.is_debt,
+      balance: item.balance != null ? String(item.balance) : '',
+      apr: item.apr != null ? String(item.apr) : '',
+      min_payment: item.min_payment != null ? String(item.min_payment) : '',
     });
     setErr('');
   }
@@ -81,8 +106,19 @@ export default function Carry() {
     }
     const highRaw = parseFloat(draft.high);
     const high = !isNaN(highRaw) && highRaw > low ? highRaw : null;
+    const balance = parseFloat(draft.balance);
+    const apr = parseFloat(draft.apr);
+    const minPay = parseFloat(draft.min_payment);
     setSaving(true);
     setErr('');
+    const debtFields = draft.is_debt
+      ? {
+          is_debt: true,
+          balance: !isNaN(balance) ? balance : null,
+          apr: !isNaN(apr) ? apr : null,
+          min_payment: !isNaN(minPay) ? minPay : null,
+        }
+      : { is_debt: false, balance: null, apr: null, min_payment: null };
     try {
       if (draft.id) {
         await updateCarryItem(draft.id, {
@@ -91,6 +127,7 @@ export default function Carry() {
           monthly_low: low,
           monthly_high: high,
           merchant_keywords: draft.keywords.trim() || null,
+          ...debtFields,
         });
       } else {
         await addCarryItem({
@@ -101,10 +138,12 @@ export default function Carry() {
           merchant_keywords: draft.keywords.trim() || null,
           category: null,
           sort_order: 500,
+          ...debtFields,
         });
       }
       setDraft(null);
       q.reload();
+      payoffQ.reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save the item.');
     } finally {
@@ -239,6 +278,51 @@ export default function Carry() {
                       placeholder="e.g. spotify, netflix"
                     />
                   </label>
+                  <label className="field grow carry-debt-toggle">
+                    <span className="field-label">Type</span>
+                    <select
+                      className="select"
+                      value={draft.is_debt ? 'debt' : 'expense'}
+                      onChange={(e) => setDraft({ ...draft, is_debt: e.target.value === 'debt' })}
+                    >
+                      <option value="expense">Expense (no balance)</option>
+                      <option value="debt">Debt (balance + APR)</option>
+                    </select>
+                  </label>
+                  {draft.is_debt && (
+                    <>
+                      <label className="field">
+                        <span className="field-label">Balance ($)</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={draft.balance}
+                          onChange={(e) => setDraft({ ...draft, balance: e.target.value })}
+                          placeholder="from statement"
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">APR (%) — off the invoice</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={draft.apr}
+                          onChange={(e) => setDraft({ ...draft, apr: e.target.value })}
+                          placeholder="e.g. 22.25"
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Monthly payment ($)</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={draft.min_payment}
+                          onChange={(e) => setDraft({ ...draft, min_payment: e.target.value })}
+                          placeholder="what you pay each month"
+                        />
+                      </label>
+                    </>
+                  )}
                 </div>
                 {err && <p className="form-error">{err}</p>}
                 <div className="carry-editor-actions">
@@ -267,7 +351,10 @@ export default function Carry() {
                   {summary.items.map((item) => (
                     <tr key={item.id}>
                       <td>
-                        <span className="carry-item-name">{item.name}</span>
+                        <span className="carry-item-name">
+                          {item.name}
+                          {item.is_debt && <span className="carry-debt-badge">debt</span>}
+                        </span>
                         <span className="carry-item-group">{item.group}</span>
                       </td>
                       <td className="num tnum">{rangeLabel(item.monthly_low, item.monthly_high)}</td>
@@ -311,6 +398,106 @@ export default function Carry() {
               Actuals come from imported statements (Import page) matched by merchant keywords.
               Items with no matching transactions this month show no actual yet.
             </p>
+          </Card>
+
+          <Card title="Debt payoff calculator">
+            {payoffQ.loading && <Spinner />}
+            {payoffQ.error && <EmptyState title="Couldn't load the payoff plan" hint={payoffQ.error} />}
+            {!payoffQ.loading && payoffQ.data && (
+              <>
+                {payoffQ.data.missing_balance.length > 0 && (
+                  <p className="carry-note carry-note-warn">
+                    Marked as debt but missing a balance: {payoffQ.data.missing_balance.join(', ')}.
+                    Edit the item and enter the balance off the latest statement to include it.
+                  </p>
+                )}
+                {!payoffQ.data.plan || payoffQ.data.debts.length === 0 ? (
+                  <EmptyState
+                    title="No debts to calculate yet"
+                    hint="Mark a carry item as Debt, then enter its balance, APR and monthly payment."
+                  />
+                ) : (
+                  <>
+                    <div className="carry-extra-row">
+                      <label className="field">
+                        <span className="field-label">Extra monthly payment ($)</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={extra}
+                          onChange={(e) => setExtra(e.target.value)}
+                          placeholder="e.g. 100"
+                        />
+                      </label>
+                    </div>
+                    <div className="table-wrap">
+                      <table className="carry-table">
+                        <thead>
+                          <tr>
+                            <th>Debt</th>
+                            <th className="num">Balance</th>
+                            <th className="num">APR</th>
+                            <th className="num">Monthly</th>
+                            <th className="num">Min-only payoff</th>
+                            <th className="num">With extra</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payoffQ.data.debts.map((d) => (
+                            <tr key={d.id}>
+                              <td>{d.name}</td>
+                              <td className="num tnum">{formatMoney(d.balance)}</td>
+                              <td className="num tnum">{d.apr.toFixed(2)}%</td>
+                              <td className="num tnum">{formatMoney(d.min_payment)}</td>
+                              <td className="num tnum">
+                                {payoffQ.data!.plan!.baseline.per_debt[d.id] != null
+                                  ? `${payoffQ.data!.plan!.baseline.per_debt[d.id]} mo`
+                                  : 'never'}
+                              </td>
+                              <td className="num tnum">
+                                {payoffQ.data!.plan!.avalanche?.per_debt[d.id] != null
+                                  ? `${payoffQ.data!.plan!.avalanche!.per_debt[d.id]} mo`
+                                  : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="carry-total-row">
+                            <td>Debt-free by</td>
+                            <td className="num tnum" colSpan={3} />
+                            <td className="num tnum">
+                              {payoffQ.data.plan.baseline.debt_free ?? 'never'} ·{' '}
+                              {formatMoney(payoffQ.data.plan.baseline.total_interest)} interest
+                            </td>
+                            <td className="num tnum">
+                              {payoffQ.data.plan.avalanche ? (
+                                <>
+                                  {payoffQ.data.plan.avalanche.debt_free ?? 'never'} ·{' '}
+                                  {formatMoney(payoffQ.data.plan.avalanche.total_interest)} interest
+                                  {payoffQ.data.plan.interest_saved != null &&
+                                    payoffQ.data.plan.interest_saved > 0 && (
+                                      <span className="carry-delta pos">
+                                        {' '}
+                                        (−{formatMoney(payoffQ.data.plan.interest_saved)})
+                                      </span>
+                                    )}
+                                </>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="carry-note">
+                      Interest compounds monthly at each invoice APR. The extra payment targets the
+                      highest-APR debt first (avalanche) and rolls freed minimums forward. Update
+                      balances and APRs from each statement upload.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
           </Card>
         </>
       )}

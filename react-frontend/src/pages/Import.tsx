@@ -13,6 +13,8 @@ import {
   confirmPdfImport,
 } from '../services/api';
 import { useAsync } from '../hooks/useAsync';
+import { fetchCarry, applyCarryStatement } from '../services/api';
+import type { CarrySummary } from '../services/types';
 import type {
   Account, ImportTxnRow, ImportResult, ParsedTransaction, PDFPreviewResponse,
 } from '../services/types';
@@ -41,6 +43,7 @@ const SUMMARY_LABELS: Record<string, string> = {
   change_from_last_period: 'Change this period',
   change_in_account_value: 'Change this period',
   additions: 'Additions',
+  purchase_apr: 'Purchase APR',
 };
 
 // Order summary fields sensibly regardless of statement type.
@@ -653,6 +656,63 @@ function BalancesSummary({ res }: { res: PDFPreviewResponse }) {
   );
 }
 
+function CarryApply({ res }: { res: PDFPreviewResponse }) {
+  const carryQ = useAsync<CarrySummary>(() => fetchCarry());
+  const [itemId, setItemId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const hasFigures =
+    res.summary.new_balance != null ||
+    res.summary.minimum_payment_due != null ||
+    res.summary.purchase_apr != null;
+  if (!hasFigures) return null;
+
+  const debts = (carryQ.data?.items ?? []).filter((i) => i.is_debt);
+
+  async function apply() {
+    if (!itemId) return;
+    setSaving(true);
+    setMsg('');
+    try {
+      await applyCarryStatement({
+        item_id: Number(itemId),
+        balance: typeof res.summary.new_balance === 'number' ? res.summary.new_balance : null,
+        min_payment:
+          typeof res.summary.minimum_payment_due === 'number'
+            ? res.summary.minimum_payment_due
+            : null,
+        apr: typeof res.summary.purchase_apr === 'number' ? res.summary.purchase_apr : null,
+      });
+      setMsg('Updated the carry item.');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not update the carry item.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="carry-apply-row">
+      <span className="field-label">Apply these figures to a Monthly Carry item</span>
+      <div className="carry-apply-controls">
+        <select className="select" value={itemId} onChange={(e) => setItemId(e.target.value)}>
+          <option value="">Choose a debt…</option>
+          {debts.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        <button className="btn btn-sm" onClick={apply} disabled={saving || !itemId}>
+          {saving ? 'Applying…' : 'Apply'}
+        </button>
+        {msg && <span className="carry-apply-msg">{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
 function HoldingsTable({ res }: { res: PDFPreviewResponse }) {
   if (!res.holdings.length) return null;
   return (
@@ -850,6 +910,7 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
           >
             <ReconciliationBanner res={preview} />
             <BalancesSummary res={preview} />
+            <CarryApply res={preview} />
           </Card>
 
           {txns.length > 0 && (

@@ -149,6 +149,12 @@ export const deleteCarryItem = (id: number) =>
   send<{ ok: boolean }>(`/carry/${id}`, 'DELETE');
 export const fetchPayoff = (extra?: number) =>
   get<PayoffResponse>('/carry/payoff', extra ? { extra } : undefined);
+export const applyCarryStatement = (payload: {
+  item_id: number;
+  balance?: number | null;
+  min_payment?: number | null;
+  apr?: number | null;
+}) => send<{ ok: boolean; id: number }>('/carry/apply-statement', 'POST', payload);
 
 // --- Subscriptions ---
 export const fetchSubscriptions = () => get<Subscription[]>('/subscriptions/');

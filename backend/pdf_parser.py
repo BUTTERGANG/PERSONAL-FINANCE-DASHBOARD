@@ -1130,6 +1130,31 @@ def _dedupe(transactions: List[Dict]) -> List[Dict]:
     return unique
 
 
+def extract_apr(text: str) -> Optional[float]:
+    """
+    Pull the purchase APR off a credit-card statement's text — e.g. a line like
+    "Purchase APR  22.24%" or "Annual Percentage Rate (APR) for Purchases ... 21.74%".
+    Prefers lines mentioning both "purchase" and "apr"; falls back to the first
+    APR line carrying a percentage. Returns e.g. 22.24 or None.
+    """
+    if not text:
+        return None
+    best: Optional[float] = None
+    first_any: Optional[float] = None
+    for line in text.splitlines():
+        if "apr" not in line.lower():
+            continue
+        m = re.search(r"(\d{1,2}(?:\.\d{1,4}))\s*%", line)
+        if not m:
+            continue
+        val = float(m.group(1))
+        if first_any is None and 0 < val < 60:
+            first_any = val
+        if best is None and "purchase" in line.lower() and 0 < val < 60:
+            best = val
+    return best if best is not None else first_any
+
+
 def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResult:
     """
     Parse a bank statement PDF into a ParseResult (transactions + reconciliation).
@@ -1143,6 +1168,7 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
     # header (Citi). Used as a fallback for period detection and summary fields.
     pymupdf_text = "\n".join(extract_text_pymupdf(pdf_path))
     period = parse_period(full_text) or parse_period(pymupdf_text)
+    summary: Dict[str, object] = {}
 
     st = detect_statement_type(full_text)
     if st and st.holdings_parser:
@@ -1176,11 +1202,18 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
         txns = [t for rows in per_section.values() for t in rows]
         recon = _reconcile(full_text, st, per_section)
         summary = _extract_summary(st, full_text, pymupdf_text)
+        apr = extract_apr(full_text) or extract_apr(pymupdf_text)
+        if apr is not None:
+            summary["purchase_apr"] = apr
         return ParseResult(
             transactions=_dedupe(txns), bank=st.bank, product=st.product,
             reconciliation=recon, method="sectioned",
             summary=summary, account_balance=summary_account_balance(st, summary),
         )
+
+    apr = extract_apr(full_text) or extract_apr(pymupdf_text)
+    if apr is not None:
+        summary["purchase_apr"] = apr
 
     # Fallback: legacy per-bank line regex, then generic tables.
     bank = bank_hint or detect_bank(full_text) or "unknown"
@@ -1191,7 +1224,7 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
         method = "generic_table"
     return ParseResult(
         transactions=_dedupe(txns), bank=bank, product="unknown",
-        reconciliation=None, method=method,
+        reconciliation=None, method=method, summary=summary,
     )
 
 

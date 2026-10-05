@@ -155,3 +155,32 @@ def test_payoff_avalanche_saves_interest(db):
     assert plan["interest_saved"] > 0
     # Highest APR debt is targeted first: cleared before the low-APR one.
     assert plan["avalanche"]["per_debt"][2] is not None
+
+
+def test_extract_apr():
+    from backend.pdf_parser import extract_apr
+
+    chase = "Interest Charges\nAnnual Percentage Rate\nPurchase APR 22.24%\nCash Advance APR 29.99%"
+    assert extract_apr(chase) == 22.24  # prefers purchase APR over cash advance
+    assert extract_apr("APR for purchases is 21.74%") == 21.74
+    assert extract_apr("no rates here") is None
+
+
+def test_apply_statement_updates_debt(db):
+    from fastapi.testclient import TestClient  # noqa: F401 — not used; direct logic instead
+
+    from backend.api.carry import ApplyStatementIn, apply_statement
+
+    seed_carry_items(db)
+    db.add(CarryItem(name="Extra card", group="Credit Cards", monthly_low=50.0, is_debt=True))
+    db.commit()
+    item = db.query(CarryItem).filter(CarryItem.name == "Extra card").one()
+
+    res = apply_statement(
+        ApplyStatementIn(item_id=item.id, balance=812.44, min_payment=35.0, apr=21.74), db
+    )
+    assert res["balance"] == 812.44
+    assert res["apr"] == 21.74
+    db.refresh(item)
+    assert item.balance == 812.44
+    assert item.min_payment == 35.0

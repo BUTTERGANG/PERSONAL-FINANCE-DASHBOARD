@@ -37,6 +37,13 @@ class CarryItemPatch(BaseModel):
     min_payment: float | None = None
 
 
+class ApplyStatementIn(BaseModel):
+    item_id: int
+    balance: float | None = None
+    min_payment: float | None = None
+    apr: float | None = None
+
+
 @router.get("/")
 def get_carry(month: str | None = None, db: Session = Depends(get_db)):
     """Fixed vs actual monthly carry for one month (`month=YYYY-MM`)."""
@@ -73,6 +80,26 @@ def get_payoff(extra: float = 0.0, db: Session = Depends(get_db)):
     ]
     plan = carry_logic.payoff_plan(debts, extra) if debts else None
     return {"debts": debts, "missing_balance": missing, "plan": plan}
+
+
+@router.post("/apply-statement")
+def apply_statement(payload: ApplyStatementIn, db: Session = Depends(get_db)):
+    """
+    Push figures parsed off an uploaded statement onto a carry item — so a
+    month's balance / minimum payment / APR refresh straight from the invoice
+    instead of manual typing.
+    """
+    item = db.get(CarryItem, payload.item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Carry item not found.")
+    if payload.balance is not None:
+        item.balance = payload.balance
+    if payload.min_payment is not None:
+        item.min_payment = payload.min_payment
+    if payload.apr is not None:
+        item.apr = payload.apr
+    db.commit()
+    return {"ok": True, "id": item.id, "balance": item.balance, "apr": item.apr, "min_payment": item.min_payment}
 
 
 @router.post("/", status_code=201)

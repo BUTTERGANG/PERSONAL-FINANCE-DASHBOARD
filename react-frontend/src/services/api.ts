@@ -15,6 +15,8 @@ import type {
   PDFPreviewResponse,
   PdfImportResult,
   CategoryRule,
+  CarrySummary,
+  CarryItemRow,
 } from './types';
 
 import { pinHeader, clearPin } from './pin';
@@ -113,6 +115,33 @@ export const setBudget = (category: string, limit_amount: number) =>
   send<Budget>('/budgets/', 'POST', { category, limit_amount });
 export const deleteBudget = (category: string) =>
   send<{ status: string }>(`/budgets/${encodeURIComponent(category)}`, 'DELETE');
+
+// --- Monthly carry ---
+export const fetchCarry = (month?: string) =>
+  get<CarrySummary>('/carry/', month ? { month } : undefined);
+export const addCarryItem = (item: {
+  name: string;
+  group: string;
+  monthly_low: number;
+  monthly_high: number | null;
+  merchant_keywords: string | null;
+  category: string | null;
+  sort_order: number;
+}) => send<{ id: number; name: string }>('/carry/', 'POST', item);
+export const updateCarryItem = (
+  id: number,
+  patch: {
+    name?: string;
+    group?: string;
+    monthly_low?: number;
+    monthly_high?: number | null;
+    merchant_keywords?: string | null;
+    category?: string | null;
+    sort_order?: number;
+  },
+) => send<{ ok: boolean; id: number }>(`/carry/${id}`, 'PATCH', patch);
+export const deleteCarryItem = (id: number) =>
+  send<{ ok: boolean }>(`/carry/${id}`, 'DELETE');
 
 // --- Subscriptions ---
 export const fetchSubscriptions = () => get<Subscription[]>('/subscriptions/');

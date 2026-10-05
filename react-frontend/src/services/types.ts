@@ -64,6 +64,40 @@ export interface Budget {
   alert: 'warning' | 'danger' | null;
 }
 
+export interface CarryItemRow {
+  id: number;
+  name: string;
+  group: string;
+  monthly_low: number;
+  monthly_high: number;
+  actual: number;
+  variance: number;
+  merchant_keywords: string;
+  category: string | null;
+  sort_order: number;
+}
+
+export interface CarryTotals {
+  monthly_low: number;
+  monthly_high: number;
+  monthly_actual: number;
+  quarter_low: number;
+  quarter_high: number;
+  quarter_months: number;
+}
+
+export interface CarryTrendPoint {
+  month: string;
+  spend: number;
+}
+
+export interface CarrySummary {
+  month: string;
+  items: CarryItemRow[];
+  totals: CarryTotals;
+  trend: CarryTrendPoint[];
+}
+
 export interface BudgetAlert {
   category: string;
   level: 'warning' | 'danger';

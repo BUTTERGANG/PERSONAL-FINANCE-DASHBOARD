@@ -13,6 +13,7 @@ import LinkAccount from './pages/LinkAccount';
 import Settings from './pages/Settings';
 import Budgets from './pages/Budgets';
 import Subscriptions from './pages/Subscriptions';
+import Carry from './pages/Carry';
 import Import from './pages/Import';
 
 applyStoredTheme();
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
+            <Route path="/carry" element={<Carry />} />
             <Route path="/import" element={<Import />} />
             <Route path="/link" element={<LinkAccount />} />
             <Route path="/settings" element={<Settings />} />

@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import accounts, budgets, manual, networth, plaid_routes, subscriptions, sync_routes, transactions
+from .api import accounts, budgets, carry, manual, networth, plaid_routes, subscriptions, sync_routes, transactions
 from .auth import PinAuthMiddleware
 from .config import get_settings
 from .database import SessionLocal, init_db
@@ -83,6 +83,7 @@ app.include_router(networth.router, prefix="/api/networth", tags=["networth"])
 app.include_router(budgets.router, prefix="/api/budgets", tags=["budgets"])
 app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["subscriptions"])
 app.include_router(manual.router, prefix="/api/manual", tags=["manual"])
+app.include_router(carry.router, prefix="/api/carry", tags=["carry"])
 
 
 @app.get("/health")

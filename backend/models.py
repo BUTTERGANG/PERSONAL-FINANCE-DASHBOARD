@@ -99,6 +99,27 @@ class Budget(Base):
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
+class CarryItem(Base):
+    """
+    One line item of the "monthly carry" — the fixed/estimated monthly
+    obligations. Actuals for each item are computed from imported transactions
+    by merchant keyword match (fallback: category match).
+    """
+
+    __tablename__ = "carry_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, unique=True, nullable=False)
+    group = Column(String, nullable=False, default="Other")  # Credit Cards / Fuel / Insurance / Software
+    monthly_low = Column(Float, nullable=False)   # estimated monthly low (or exact)
+    monthly_high = Column(Float, nullable=True)   # estimated monthly high (ranges only)
+    merchant_keywords = Column(Text, nullable=True)  # comma-separated, case-insensitive match on merchant/description
+    category = Column(String, nullable=True)      # fallback match: transaction category
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class NetWorthSnapshot(Base):
     """One row per calendar day capturing total net worth for the trend chart."""
 

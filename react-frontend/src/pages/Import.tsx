@@ -767,7 +767,7 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
-  const [result, setResult] = useState<{ added: number; skipped: number; balanceUpdated: boolean } | null>(null);
+  const [result, setResult] = useState<{ added: number; skipped: number; balanceUpdated: boolean; holdings: number } | null>(null);
 
   const txns = preview?.transactions ?? [];
   const holdings = preview?.holdings ?? [];
@@ -810,11 +810,12 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
     setImportError('');
     try {
       const bal = syncBalance && preview.account_balance != null ? preview.account_balance : undefined;
-      const res = await confirmPdfImport(accountId, txns, bal);
+      const res = await confirmPdfImport(accountId, txns, bal, holdings, preview.period_end);
       setResult({
         added: res.added,
         skipped: res.skipped_duplicates,
         balanceUpdated: !!res.balance_updated,
+        holdings: (res.holdings_added ?? 0) + (res.holdings_updated ?? 0),
       });
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Import failed.');
@@ -955,12 +956,16 @@ function PdfImport({ accounts }: { accounts: Account[] }) {
                   <strong>
                     {result.added > 0
                       ? `Imported ${result.added} transaction${result.added === 1 ? '' : 's'}`
-                      : 'Statement imported'}
+                      : result.holdings > 0
+                        ? `Saved ${result.holdings} position${result.holdings === 1 ? '' : 's'}`
+                        : 'Statement imported'}
                   </strong>
                   <div className="result-meta">
+                    {result.added > 0 && result.holdings > 0 &&
+                      `${result.holdings} position${result.holdings === 1 ? '' : 's'} saved to the portfolio. `}
                     {result.skipped > 0 && `${result.skipped} duplicates skipped. `}
                     {result.balanceUpdated && 'Account balance updated. '}
-                    {result.added === 0 && !result.balanceUpdated && 'Nothing new to add.'}
+                    {result.added === 0 && result.holdings === 0 && !result.balanceUpdated && 'Nothing new to add.'}
                     {result.added > 0 && result.skipped === 0 && !result.balanceUpdated && 'All rows imported cleanly.'}
                   </div>
                   <div className="wizard-actions" style={{ marginTop: 12 }}>

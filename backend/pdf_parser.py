@@ -190,6 +190,11 @@ class Period:
         return self.start_year if month >= self.start_month else self.end_year
 
 
+def period_end_label(period: Optional["Period"]) -> Optional[str]:
+    """The statement's period end as YYYY-MM (the day isn't in the period line)."""
+    return f"{period.end_year}-{period.end_month:02d}" if period else None
+
+
 def parse_period(text: str) -> Optional[Period]:
     """
     Extract the statement period. Handles both the Chase long form
@@ -1114,6 +1119,9 @@ class ParseResult:
     account_balance: Optional[float] = None
     # Investment positions (Fidelity). Empty for transaction statements.
     holdings: List[Holding] = field(default_factory=list)
+    # Statement period end as YYYY-MM, when the statement states one. Stamped onto
+    # persisted holdings so the portfolio shows which statement a position came from.
+    period_end: Optional[str] = None
 
     @property
     def statement_type(self) -> str:
@@ -1183,6 +1191,7 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
             reconciliation=_reconcile_holdings(holdings, account_value),
             method="investment", summary=summary,
             account_balance=account_value, holdings=holdings,
+            period_end=period_end_label(period),
         )
     if st:
         # For multi-column statements (x_cutoff set), parse transaction *sections*
@@ -1209,6 +1218,7 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
             transactions=_dedupe(txns), bank=st.bank, product=st.product,
             reconciliation=recon, method="sectioned",
             summary=summary, account_balance=summary_account_balance(st, summary),
+            period_end=period_end_label(period),
         )
 
     apr = extract_apr(full_text) or extract_apr(pymupdf_text)
@@ -1225,6 +1235,7 @@ def parse_statement(pdf_path: str, bank_hint: Optional[str] = None) -> ParseResu
     return ParseResult(
         transactions=_dedupe(txns), bank=bank, product="unknown",
         reconciliation=None, method=method, summary=summary,
+        period_end=period_end_label(period),
     )
 
 

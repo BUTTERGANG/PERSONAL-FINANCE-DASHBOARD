@@ -9,6 +9,7 @@ import App from './App';
 import Overview from './pages/Overview';
 import Transactions from './pages/Transactions';
 import Accounts from './pages/Accounts';
+import Portfolio from './pages/Portfolio';
 import LinkAccount from './pages/LinkAccount';
 import Settings from './pages/Settings';
 import Budgets from './pages/Budgets';
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/overview" element={<Overview />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/accounts" element={<Accounts />} />
+            <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/carry" element={<Carry />} />

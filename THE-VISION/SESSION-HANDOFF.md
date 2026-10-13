@@ -42,6 +42,8 @@ backend/
                         printed totals; extracts summary balances + investment holdings.
                         Legacy line-regex fallback for unrecognized statements.
   sync.py             ← Orchestrates all account syncs
+  holdings.py         ← Persist parsed positions (upsert per account) + portfolio
+                        aggregation (market value / cost basis / unrealized gain)
   main.py             ← FastAPI app, CORS, scheduler startup
   api/
     accounts.py       ← GET /api/accounts/
@@ -55,7 +57,9 @@ backend/
                         POST /manual/accounts, PATCH /manual/accounts/:id,
                         POST /manual/import (CSV rows),
                         POST /manual/import-pdf/preview (parse, no save),
-                        POST /manual/import-pdf/confirm (save parsed rows)
+                        POST /manual/import-pdf/confirm (save parsed rows + positions)
+    holdings.py       ← GET /api/holdings/ (+ ?account_id), GET /api/holdings/portfolio,
+                        DELETE /api/holdings/:id
 
 react-frontend/       ← NEW: React + Vite + Recharts frontend (Phase 2 UI upgrade)
   src/
@@ -71,10 +75,11 @@ react-frontend/       ← NEW: React + Vite + Recharts frontend (Phase 2 UI upgr
         AreaTrend.tsx  ← Net worth trend chart (Recharts)
         BarCategory.tsx
         ProgressBar.tsx
-    pages/            ← ALL 8 pages built (each has its own .css)
+    pages/            ← ALL 10 pages built (each has its own .css)
       Overview.tsx     ← Net worth, assets/debt, spending, net worth trend, MoM movers, accounts list
       Transactions.tsx ← Filterable table (date/account/category/search)
       Accounts.tsx     ← Balance cards, sync status, manual account create/edit
+      Portfolio.tsx    ← Persisted positions by account — value/cost basis/gain + totals
       Budgets.tsx      ← Budget list, progress bars, create/edit
       Subscriptions.tsx← Detected recurring list, dismiss/restore
       Import.tsx       ← ★ CSV multi-file wizard + PDF statement upload (preview→confirm) — the data path
@@ -108,11 +113,12 @@ scripts/
 | Backend API | ✅ Built | FastAPI, all routes implemented |
 | Database models | ✅ Built | Account, Transaction, SyncLog, Budget, NetWorthSnapshot, IgnoredSubscription |
 | **Document import (CSV + PDF)** | **✅ Built — primary data path** | Manual accounts + CSV wizard + PDF statement parse/preview/confirm |
+| **Holdings + Portfolio** | **✅ Built** | Fidelity positions persisted on import (upserted per account); Portfolio page aggregates value/cost basis/gain |
 | Plaid integration | ✅ Built — ⬜ **dormant** | Code complete; **blocked on Plaid dev access approval** |
 | Fidelity OFX | ✅ Built — ⬜ dormant | Needs real credentials |
 | Encryption (Plaid tokens) | ✅ Built | Fernet, key from env var |
 | Auto-sync scheduler | ✅ Built | APScheduler, configurable interval (only matters once live sync is active) |
-| **React frontend** | **✅ All 8 pages built** | Overview, Transactions, Accounts, Budgets, Subscriptions, Import, LinkAccount, Settings |
+| **React frontend** | **✅ All 10 pages built** | Overview, Transactions, Accounts, Portfolio, Budgets, Subscriptions, Carry, Import, LinkAccount, Settings |
 | Access control (UI + API) | ⬜ **Missing** | No PIN gate on React, no auth on backend, port 8000 public — harden before deploy |
 | Deployed to Replit | ⬜ Pending | See SETUP.md for deployment steps |
 | Live accounts linked | ⬜ Blocked | Waiting on Plaid approval + Fidelity credentials |
@@ -146,19 +152,15 @@ Plaid access tokens stored in SQLite are encrypted with Fernet before write. Enc
 **Plaid is blocked, so the near-term work is document upload + hardening — not linking.**
 
 The PDF import pipeline is now solid: 6 statement types tuned + reconciling (45 tests),
-the Import preview shows reconciliation status / summary balances / holdings, and confirm
-can sync the account balance (and import holdings-only Fidelity statements). Remaining:
+the Import preview shows reconciliation status / summary balances / holdings, confirm can
+sync the account balance and persist positions, and imported rows are auto-categorized.
+Remaining:
 
-1. **Post-import categorization** — imported rows have no category, so budgets/spending
-   charts stay thin until this exists. Highest-value functional gap. Needs a
-   `PATCH /transactions/{id}` (category) endpoint — not built yet.
-2. **Persist holdings** — Fidelity holdings are parsed + shown but not stored. A
-   `Holding` table + a portfolio view would make them durable.
-3. **More statement types** — Discover, Amex, etc. as samples arrive. Each is a
+1. **More statement types** — Discover, Amex, etc. as samples arrive. Each is a
    declarative `StatementType` config in `pdf_parser.py` + a fixture in
    `tests/fixtures/statements/` + a `Case`/test. Follow the existing 6 as templates.
-4. **Optional**: accept `.ofx`/`.qfx` uploads (structured; complements PDF).
-5. Deploy to Replit and run `bash run.sh` (works today with document upload only).
+2. **Optional**: accept `.ofx`/`.qfx` uploads (structured; complements PDF).
+3. Deploy to Replit and run `bash run.sh` (works today with document upload only).
 
 > Auth is already done (PIN gate on all `/api/*` both ends) — no longer a blocker.
 

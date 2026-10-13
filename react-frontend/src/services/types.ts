@@ -234,8 +234,51 @@ export interface PDFPreviewResponse {
   summary: Record<string, number | string>;
   // The statement's stated account balance, offered to sync onto the account.
   account_balance: number | null;
+  // Statement period end (YYYY-MM) when stated — stamped onto persisted holdings.
+  period_end: string | null;
 }
 
 export interface PdfImportResult extends ImportResult {
   balance_updated?: boolean;
+  holdings_added?: number;
+  holdings_updated?: number;
+}
+
+// A persisted investment position (from a Fidelity statement).
+export interface StoredHolding {
+  id: number;
+  account_id: string;
+  account_name: string;
+  symbol: string | null;
+  description: string;
+  quantity: number | null;
+  price: number | null;
+  market_value: number | null;
+  cost_basis: number | null;
+  unrealized_gain: number | null;
+  as_of: string | null; // statement period end, YYYY-MM
+  source: string; // pdf | manual
+}
+
+export interface PortfolioAccount {
+  account_id: string;
+  account_name: string;
+  positions: number;
+  market_value: number;
+  cost_basis: number;
+  unrealized_gain: number;
+  holdings: StoredHolding[];
+}
+
+export interface PortfolioTotals {
+  positions: number;
+  market_value: number;
+  cost_basis: number;
+  unrealized_gain: number;
+  return_pct: number | null;
+}
+
+export interface PortfolioResponse {
+  accounts: PortfolioAccount[];
+  totals: PortfolioTotals;
 }

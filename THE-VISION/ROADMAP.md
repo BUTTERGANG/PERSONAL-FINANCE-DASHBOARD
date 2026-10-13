@@ -37,8 +37,12 @@ this section tracks the polish that makes it the reliable, standalone way to use
       `backend/categorize.py`, 30 tests. (Also fixed a latent bug: the old
       `_merchant_key` collapsed every card purchase to "card purchase", breaking
       subscription grouping — now shared with the new extractor.)
-- [ ] **Persist holdings** — holdings are parsed + displayed but not stored; a
-      `Holding` table would enable a portfolio view (positions, cost basis, gain/loss)
+- [x] **Persist holdings** — Fidelity brokerage + crypto positions are saved to a
+      `holdings` table on import (upserted per account, so re-importing a later
+      statement refreshes positions instead of duplicating them). The **Portfolio**
+      page groups positions by account with market value, cost basis and unrealized
+      gain, plus grand totals and a return %. Each position is stamped with the
+      statement period it came from.
 - [ ] **More statement types** — Discover, Amex, and other banks as samples arrive
       (each new type is a declarative config + a test fixture)
 - [ ] **Import history / undo** — show what each import added; allow removing a bad import batch
@@ -60,7 +64,7 @@ The foundation is complete. These features are live:
 - [x] Background auto-sync every 4 hours
 - [x] Manual sync trigger
 - [x] FastAPI REST backend with all endpoints
-- [x] React + Recharts frontend — all 8 pages built
+- [x] React + Recharts frontend — all 10 pages built
 - [x] Net worth overview with account balance cards
 - [x] Spending by category (pie chart — Recharts)
 - [x] Spending over time (bar chart — Recharts)
@@ -108,8 +112,8 @@ Nice-to-haves once the MVP is stable and accounts are flowing.
       brokerage + crypto), each verified to the penny against printed totals
 - [x] **Investment holdings parsing**: Fidelity brokerage + crypto statements parse
       positions (symbol, quantity, price, market value, cost basis, unrealized gain)
-      and reconcile against the account value — *displayed in the import preview; not
-      yet persisted to a holdings table*
+      and reconcile against the account value — *now persisted to a `holdings` table
+      and surfaced on the Portfolio page; re-import refreshes positions in place*
 - [x] **Transaction categorization override**: inline per-row category dropdown on
       the Transactions page; correcting a merchant learns a rule and re-applies it
 - [x] **Merchant normalization**: `extract_merchant()` unwraps `Sq */Klarna*/Wl *`
@@ -149,7 +153,7 @@ For when this becomes a serious tool.
 |-------|--------|------|
 | **Plaid dev access not yet granted** | **Blocked** | Waiting on Plaid approval; document upload is the working data path meanwhile |
 | PDF parser only covers 6 statement types | Known | Each new bank is a declarative config + a test fixture; add Discover/Amex/etc. as samples arrive |
-| Investment holdings parsed but not persisted | Known | Add a `Holding` table + portfolio view; today they're shown in the import preview only |
+| ~~Investment holdings parsed but not persisted~~ | **Done** | Positions now persist to a `holdings` table on import and render on the Portfolio page |
 | Merchant extraction is heuristic (regex) | Known | Good on the 6 known statement formats; a new bank's noise may need a new peel rule. Learned rules + the seed map cover the gaps |
 | Transaction data not encrypted at rest | Deferred | SQLCipher |
 | Venmo transaction detail from Plaid is limited | Known | Phase 3: direct scraping (only relevant once Plaid works) |
@@ -159,13 +163,14 @@ For when this becomes a serious tool.
 
 ## React Frontend Page Status
 
-All eight pages are built and styled (dedicated stylesheets, light/dark theme).
+All ten pages are built and styled (dedicated stylesheets, light/dark theme).
 
 | Page | Status | Notes |
 |------|--------|-------|
 | Overview | ✅ Built | Net worth, assets/debt, 30-day spend, net worth trend, MoM movers, accounts, budget-alert banner |
 | Transactions | ✅ Built | Filterable table (date/account/category/search) |
 | Accounts | ✅ Built | Balance cards, sync status, manual account create/edit |
+| Portfolio | ✅ Built | Persisted investment positions grouped by account — market value, cost basis, unrealized gain, totals |
 | Budgets | ✅ Built | Budget list, progress bars, create/edit |
 | Subscriptions | ✅ Built | Detected recurring list, dismiss/restore |
 | Import | ✅ Built | CSV multi-file wizard + PDF statement upload (preview → confirm) |

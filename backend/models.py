@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -121,6 +121,35 @@ class CarryItem(Base):
     min_payment = Column(Float, nullable=True)    # minimum monthly payment
     is_debt = Column(Boolean, default=False)
     sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class Holding(Base):
+    """
+    One investment position persisted from a brokerage statement (Fidelity
+    brokerage + crypto). A snapshot of what is owned, not a transaction.
+    Upserted on (account_id, position_key) so re-importing a later statement
+    refreshes the position instead of duplicating it.
+    """
+
+    __tablename__ = "holdings"
+    __table_args__ = (UniqueConstraint("account_id", "position_key", name="uq_holding_position"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(String, nullable=False, index=True)
+    # symbol when the statement gives one, else a slug of the description —
+    # the stable identity of a position within an account.
+    position_key = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    symbol = Column(String, nullable=True)
+    quantity = Column(Float, nullable=True)
+    price = Column(Float, nullable=True)
+    market_value = Column(Float, nullable=True)
+    cost_basis = Column(Float, nullable=True)        # None when "not applicable" (money market)
+    unrealized_gain = Column(Float, nullable=True)
+    as_of = Column(String, nullable=True)            # statement period end (YYYY-MM-DD), if known
+    source = Column(String, default="pdf")           # pdf | manual
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 

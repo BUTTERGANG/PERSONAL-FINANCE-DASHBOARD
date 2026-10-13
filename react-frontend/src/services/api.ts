@@ -12,12 +12,15 @@ import type {
   ImportResult,
   Health,
   ParsedTransaction,
+  Holding,
   PDFPreviewResponse,
   PdfImportResult,
   CategoryRule,
   CarrySummary,
   CarryItemRow,
   PayoffResponse,
+  PortfolioResponse,
+  StoredHolding,
 } from './types';
 
 import { pinHeader, clearPin } from './pin';
@@ -156,6 +159,13 @@ export const applyCarryStatement = (payload: {
   apr?: number | null;
 }) => send<{ ok: boolean; id: number }>('/carry/apply-statement', 'POST', payload);
 
+// --- Holdings / portfolio ---
+export const fetchPortfolio = () => get<PortfolioResponse>('/holdings/portfolio');
+export const fetchHoldings = (account_id?: string) =>
+  get<StoredHolding[]>('/holdings/', account_id ? { account_id } : undefined);
+export const deleteHolding = (id: number) =>
+  send<{ ok: boolean; id: number }>(`/holdings/${id}`, 'DELETE');
+
 // --- Subscriptions ---
 export const fetchSubscriptions = () => get<Subscription[]>('/subscriptions/');
 export const ignoreSubscription = (merchant_key: string) =>
@@ -206,11 +216,15 @@ export const confirmPdfImport = (
   account_id: string,
   transactions: ParsedTransaction[],
   set_balance?: number,
+  holdings?: Holding[],
+  as_of?: string | null,
 ) =>
   send<PdfImportResult>('/manual/import-pdf/confirm', 'POST', {
     account_id,
     transactions,
     ...(set_balance != null ? { set_balance } : {}),
+    ...(holdings && holdings.length ? { holdings } : {}),
+    ...(as_of ? { as_of } : {}),
   });
 
 // --- Sync ---

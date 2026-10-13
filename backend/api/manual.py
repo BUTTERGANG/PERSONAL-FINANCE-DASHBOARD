@@ -23,6 +23,7 @@ from ..database import get_db
 from ..models import Account, CategoryRule, Transaction
 from ..pdf_parser import parse_statement
 from ..categorize import auto_categorize
+from .. import holdings as holdings_logic
 
 
 def _load_rules(db: Session) -> dict:
@@ -232,6 +233,9 @@ class PDFPreviewResponse(BaseModel):
     # The statement's stated account balance (Citi new balance, Chase ending
     # balance). Offer to sync this onto the account's balance on import.
     account_balance: Optional[float] = None
+    # Statement period end (YYYY-MM) when the statement gives one — stamped onto
+    # persisted holdings so the portfolio shows which statement they came from.
+    period_end: Optional[str] = None
 
 
 @router.post("/import-pdf/preview", response_model=PDFPreviewResponse)
@@ -292,12 +296,18 @@ async def preview_pdf_import(
         summary=result.summary,
         account_balance=result.account_balance,
         holdings=[HoldingOut(**h.as_dict()) for h in result.holdings],
+        period_end=result.period_end,
     )
 
 
 class PDFImportConfirmRequest(BaseModel):
     account_id: str
     transactions: List[ParsedTransaction] = []
+    # Investment positions parsed off a brokerage statement (Fidelity). Upserted
+    # per account so a later statement refreshes positions instead of duplicating.
+    holdings: List[HoldingOut] = []
+    # Statement period end (YYYY-MM-DD) to stamp on persisted holdings, if known.
+    as_of: Optional[str] = None
     # When provided, the account's balance is set to this value (the statement's
     # ending/new balance). Lets a user sync the account to the statement, and lets
     # holdings-only statements (Fidelity investment/crypto) import with no rows.
@@ -307,20 +317,21 @@ class PDFImportConfirmRequest(BaseModel):
 @router.post("/import-pdf/confirm")
 def confirm_pdf_import(payload: PDFImportConfirmRequest, db: Session = Depends(get_db)):
     """
-    Save PDF-parsed transactions and/or sync the account balance.
+    Save PDF-parsed transactions and/or positions, and/or sync the account balance.
 
-    Accepts three shapes:
+    Accepts four shapes:
       • transactions only  → import rows (checking / credit cards)
       • set_balance only   → sync the account value (Fidelity holdings statements)
-      • both               → import rows and sync the balance
+      • holdings           → persist investment positions (portfolio view)
+      • any combination
     """
     acct = db.get(Account, payload.account_id)
     if not acct:
         raise HTTPException(status_code=404, detail="Account not found. Create it first.")
-    if not payload.transactions and payload.set_balance is None:
+    if not payload.transactions and payload.set_balance is None and not payload.holdings:
         raise HTTPException(
             status_code=400,
-            detail="Nothing to import — no transactions and no balance to sync.",
+            detail="Nothing to import — no transactions, holdings, or balance to sync.",
         )
 
     rules = _load_rules(db)
@@ -352,6 +363,16 @@ def confirm_pdf_import(payload: PDFImportConfirmRequest, db: Session = Depends(g
         )
         added += 1
 
+    holdings_result = {"added": 0, "updated": 0, "total": 0}
+    if payload.holdings:
+        holdings_result = holdings_logic.upsert_holdings(
+            db,
+            payload.account_id,
+            [h.model_dump() for h in payload.holdings],
+            source="pdf",
+            as_of=payload.as_of,
+        )
+
     balance_updated = False
     if payload.set_balance is not None:
         acct.balance = payload.set_balance
@@ -364,4 +385,6 @@ def confirm_pdf_import(payload: PDFImportConfirmRequest, db: Session = Depends(g
         "added": added,
         "skipped_duplicates": skipped,
         "balance_updated": balance_updated,
+        "holdings_added": holdings_result["added"],
+        "holdings_updated": holdings_result["updated"],
     }

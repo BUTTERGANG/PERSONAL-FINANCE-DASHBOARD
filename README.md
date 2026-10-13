@@ -46,8 +46,9 @@ All documentation lives in `THE-VISION/`:
 ## Project Structure
 
 ```
-backend/           FastAPI app, Plaid client, OFX client, sync engine, PDF statement parser
-react-frontend/    React + Vite + Recharts dashboard (all 8 pages built) — the only frontend
+backend/           FastAPI app, Plaid client, OFX client, sync engine, PDF statement parser,
+                   holdings persistence + portfolio aggregation
+react-frontend/    React + Vite + Recharts dashboard (all 10 pages built) — the only frontend
 frontend/          REMOVED 2026-09-15: legacy Streamlit dashboard (crashed on Transactions)
 THE-VISION/        Documentation
 scripts/           generate_key.py, pre-commit hook
@@ -65,16 +66,17 @@ run.sh             Startup script for Replit
 | Backend API | ✅ Complete |
 | Database models | ✅ Complete |
 | Document import (CSV + PDF) | ✅ Complete — **primary data path** |
+| Investment holdings (persisted) | ✅ Complete — Fidelity positions saved on import; **Portfolio** page aggregates value / cost basis / gain |
 | Manual accounts | ✅ Complete |
 | Plaid integration | ✅ Built — ⬜ dormant (dev access pending approval) |
 | Fidelity OFX | ✅ Built — ⬜ needs real credentials |
 | Encryption (Plaid tokens) | ✅ Complete |
 | Auto-sync scheduler | ✅ Complete |
-| **React frontend** | **✅ All 8 pages built** |
+| **React frontend** | **✅ All 10 pages built** |
 | Deployed to Replit | ⬜ Pending |
 | Live accounts linked | ⬜ Blocked on Plaid approval |
 
-All eight React pages are built: **Overview, Transactions, Accounts, Budgets, Subscriptions, Import, Link Account, Settings.**
+All ten React pages are built: **Overview, Transactions, Accounts, Portfolio, Budgets, Subscriptions, Import, Link Account, Settings.**
 
 ### Getting data in — document upload
 

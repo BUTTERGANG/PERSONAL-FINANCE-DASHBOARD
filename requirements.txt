@@ -6,14 +6,14 @@
 # API framework
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
-python-multipart==0.0.20   # multipart form parsing for PDF statement uploads
+python-multipart==0.0.32   # multipart form parsing for PDF statement uploads
 
 # Database
 sqlalchemy==2.0.36
 
 # Settings / env
 pydantic-settings==2.7.0
-python-dotenv==1.0.1
+python-dotenv==1.2.4
 
 # Plaid SDK (live sync — dormant until Plaid dev access is granted)
 plaid-python==40.1.0
@@ -22,7 +22,7 @@ plaid-python==40.1.0
 ofxtools==0.9.5
 
 # Encryption (Plaid tokens at rest)
-cryptography==44.0.0
+cryptography==50.0.2
 
 # Background scheduler (auto-sync)
 apscheduler==3.10.4
